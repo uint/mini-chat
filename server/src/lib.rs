@@ -25,15 +25,28 @@ async fn handle_connection(peer_map: PeerMap, raw_stream: TcpStream, addr: Socke
 
     // Insert the write part of this peer to the peer map.
     let (tx, rx) = unbounded();
-    peer_map.lock().unwrap().insert(addr, tx);
+    peer_map.lock().unwrap().insert(addr, tx.clone());
 
-    let (outgoing, incoming) = ws_stream.split();
+    let (outgoing, mut incoming) = ws_stream.split();
+
+    let handle = if let Some(Ok(msg)) = incoming.next().await {
+        if let Ok(Frame::Login(handle)) = Frame::try_from(msg) {
+            handle
+        } else {
+            return;
+        }
+    } else {
+        return;
+    };
+
+    let accepted_msg: Message = Frame::LoginResponse(LoginResponse::Ok).try_into().unwrap();
+    tx.unbounded_send(accepted_msg).unwrap();
 
     let handle_incoming = incoming.try_for_each(|msg| {
         if let Ok(request) = Frame::try_from(msg) {
             match request {
                 Frame::Login(_) => todo!(),
-                Frame::Msg(msg) => {
+                Frame::Msg(id, msg) => {
                     // TODO: rewrite this as a separate fn, add error handling
                     // (by sending the error in a frame)
 
@@ -43,6 +56,9 @@ async fn handle_connection(peer_map: PeerMap, raw_stream: TcpStream, addr: Socke
                     //     msg.to_text().unwrap()
                     // );
 
+                    let receipt: Message = Frame::MsgReceipt(id).try_into().unwrap();
+                    tx.unbounded_send(receipt).unwrap();
+
                     let peers = peer_map.lock().unwrap();
 
                     // We want to broadcast the message to everyone except ourselves.
@@ -51,7 +67,10 @@ async fn handle_connection(peer_map: PeerMap, raw_stream: TcpStream, addr: Socke
                         .filter(|(peer_addr, _)| peer_addr != &&addr)
                         .map(|(_, ws_sink)| ws_sink);
 
-                    let broadcast_frame = Message::try_from(Frame::Broadcast { sender: None, msg });
+                    let broadcast_frame = Message::try_from(Frame::Broadcast {
+                        sender: Some(handle.clone()),
+                        msg,
+                    });
                     if let Ok(broadcast_frame) = broadcast_frame {
                         for recp in broadcast_recipients {
                             recp.unbounded_send(broadcast_frame.clone()).unwrap();
@@ -99,7 +118,8 @@ pub async fn serve(addr: &str) -> Result<(), IoError> {
 pub enum Frame {
     Login(String),
     LoginResponse(LoginResponse),
-    Msg(String),
+    Msg(u32, String),
+    MsgReceipt(u32),
     Broadcast { sender: Option<String>, msg: String },
     Close,
 }
