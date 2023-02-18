@@ -7,7 +7,7 @@ use std::{
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use futures_channel::mpsc::{unbounded, UnboundedSender};
-use futures_util::{future, pin_mut, stream::TryStreamExt, StreamExt};
+use futures_util::{future, pin_mut, stream::TryStreamExt, SinkExt, StreamExt};
 
 use tokio::net::{TcpListener, TcpStream};
 use tungstenite::protocol::Message;
@@ -16,6 +16,8 @@ type Tx = UnboundedSender<Message>;
 type PeerMap = Arc<Mutex<HashMap<SocketAddr, Tx>>>;
 
 async fn handle_connection(peer_map: PeerMap, raw_stream: TcpStream, addr: SocketAddr) {
+    // TODO: abstract away the transport used to send/receive frames (WS in this case)
+
     println!("Incoming TCP connection from: {}", addr);
 
     let ws_stream = tokio_tungstenite::accept_async(raw_stream)
@@ -33,6 +35,7 @@ async fn handle_connection(peer_map: PeerMap, raw_stream: TcpStream, addr: Socke
         if let Ok(Frame::Login(handle)) = Frame::try_from(msg) {
             handle
         } else {
+            tx.unbounded_send(accepted_msg).unwrap();
             return;
         }
     } else {
@@ -45,7 +48,6 @@ async fn handle_connection(peer_map: PeerMap, raw_stream: TcpStream, addr: Socke
     let handle_incoming = incoming.try_for_each(|msg| {
         if let Ok(request) = Frame::try_from(msg) {
             match request {
-                Frame::Login(_) => todo!(),
                 Frame::Msg(id, msg) => {
                     // TODO: rewrite this as a separate fn, add error handling
                     // (by sending the error in a frame)
@@ -77,7 +79,6 @@ async fn handle_connection(peer_map: PeerMap, raw_stream: TcpStream, addr: Socke
                         }
                     }
                 }
-                Frame::Close => todo!(),
                 _ => {}
             }
         }
@@ -114,14 +115,15 @@ pub async fn serve(addr: &str) -> Result<(), IoError> {
     Ok(())
 }
 
+pub struct ClientFrame(u8, Frame);
+
 #[derive(Debug, PartialEq, Eq, Hash, BorshSerialize, BorshDeserialize)]
 pub enum Frame {
     Login(String),
     LoginResponse(LoginResponse),
-    Msg(u32, String),
-    MsgReceipt(u32),
+    Msg(String),
+    MsgReceipt(u8),
     Broadcast { sender: Option<String>, msg: String },
-    Close,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, BorshSerialize, BorshDeserialize)]
