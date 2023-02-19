@@ -2,7 +2,8 @@ use futures_util::{
     stream::{SplitSink, SplitStream},
     SinkExt, StreamExt,
 };
-use server::{serve, Frame, LoginResponse};
+use server::frame::{ClientFrame, ClientFrameType, ServerFrame};
+use server::serve;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
     connect_async, tungstenite::protocol::Message, MaybeTlsStream, WebSocketStream,
@@ -13,7 +14,7 @@ type Stream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 struct Client {
     write: SplitSink<Stream, Message>,
     read: SplitStream<Stream>,
-    msg_count: u32,
+    msg_count: u8,
 }
 
 impl Client {
@@ -29,26 +30,30 @@ impl Client {
             msg_count: 0,
         };
 
-        client.send_frame(Frame::Login(handle.to_string())).await;
-        client
-            .assert_frame(Frame::LoginResponse(LoginResponse::Ok))
+        let login = client
+            .send_frame(ClientFrameType::Login(handle.to_string()))
             .await;
+        client.assert_frame(ServerFrame::Okay(login)).await;
 
         client
     }
 
-    async fn send_frame(&mut self, frame: Frame) {
-        self.write.send(frame.try_into().unwrap()).await.unwrap();
+    async fn send_frame(&mut self, frame: ClientFrameType) -> u8 {
+        let id = self.msg_count;
+        self.write
+            .send(ClientFrame { id, data: frame }.try_into().unwrap())
+            .await
+            .unwrap();
+        self.msg_count += 1;
+        id
     }
 
     async fn send_msg(&mut self, msg: &str) {
-        self.send_frame(Frame::Msg(self.msg_count, msg.to_string()))
-            .await;
-        self.assert_frame(Frame::MsgReceipt(self.msg_count)).await;
-        self.msg_count += 1;
+        let id = self.send_frame(ClientFrameType::Msg(msg.to_string())).await;
+        self.assert_frame(ServerFrame::Okay(id)).await;
     }
 
-    async fn assert_frame(&mut self, exp_frame: Frame) {
+    async fn assert_frame(&mut self, exp_frame: ServerFrame) {
         if let Some(msg) = self.read.next().await {
             let frame = msg.unwrap().try_into().unwrap();
             assert_eq!(exp_frame, frame);
@@ -57,11 +62,10 @@ impl Client {
         }
     }
 
-    async fn assert_broadcast(&mut self, exp_sender: impl Into<Option<&str>>, exp_msg: &str) {
-        let exp_sender = exp_sender.into().map(ToString::to_string);
+    async fn assert_broadcast(&mut self, exp_sender: &str, exp_msg: &str) {
         if let Some(msg) = self.read.next().await {
             let msg = msg.unwrap();
-            if let Frame::Broadcast { sender, msg } = msg.try_into().unwrap() {
+            if let ServerFrame::Broadcast { sender, msg } = msg.try_into().unwrap() {
                 assert_eq!(exp_sender, sender);
                 assert_eq!(exp_msg, msg);
             } else {

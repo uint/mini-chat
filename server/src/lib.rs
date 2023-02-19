@@ -1,3 +1,5 @@
+pub mod frame;
+
 use std::{
     collections::HashMap,
     io::Error as IoError,
@@ -11,6 +13,8 @@ use futures_util::{future, pin_mut, stream::TryStreamExt, SinkExt, StreamExt};
 
 use tokio::net::{TcpListener, TcpStream};
 use tungstenite::protocol::Message;
+
+use crate::frame::{ClientFrame, ClientFrameType, ServerFrame};
 
 type Tx = UnboundedSender<Message>;
 type PeerMap = Arc<Mutex<HashMap<SocketAddr, Tx>>>;
@@ -32,33 +36,29 @@ async fn handle_connection(peer_map: PeerMap, raw_stream: TcpStream, addr: Socke
     let (outgoing, mut incoming) = ws_stream.split();
 
     let handle = if let Some(Ok(msg)) = incoming.next().await {
-        if let Ok(Frame::Login(handle)) = Frame::try_from(msg) {
+        if let Ok(ClientFrame {
+            id,
+            data: ClientFrameType::Login(handle),
+        }) = ClientFrame::try_from(msg)
+        {
+            let accepted_msg = ServerFrame::Okay(id).try_into().unwrap();
+            tx.unbounded_send(accepted_msg).unwrap();
             handle
         } else {
-            tx.unbounded_send(accepted_msg).unwrap();
             return;
         }
     } else {
         return;
     };
 
-    let accepted_msg: Message = Frame::LoginResponse(LoginResponse::Ok).try_into().unwrap();
-    tx.unbounded_send(accepted_msg).unwrap();
-
     let handle_incoming = incoming.try_for_each(|msg| {
-        if let Ok(request) = Frame::try_from(msg) {
+        if let Ok(ClientFrame { data: request, id }) = ClientFrame::try_from(msg) {
             match request {
-                Frame::Msg(id, msg) => {
+                ClientFrameType::Msg(msg) => {
                     // TODO: rewrite this as a separate fn, add error handling
                     // (by sending the error in a frame)
 
-                    // println!(
-                    //     "Received a message from {}: {}",
-                    //     addr,
-                    //     msg.to_text().unwrap()
-                    // );
-
-                    let receipt: Message = Frame::MsgReceipt(id).try_into().unwrap();
+                    let receipt: Message = ServerFrame::Okay(id).try_into().unwrap();
                     tx.unbounded_send(receipt).unwrap();
 
                     let peers = peer_map.lock().unwrap();
@@ -69,8 +69,8 @@ async fn handle_connection(peer_map: PeerMap, raw_stream: TcpStream, addr: Socke
                         .filter(|(peer_addr, _)| peer_addr != &&addr)
                         .map(|(_, ws_sink)| ws_sink);
 
-                    let broadcast_frame = Message::try_from(Frame::Broadcast {
-                        sender: Some(handle.clone()),
+                    let broadcast_frame = Message::try_from(ServerFrame::Broadcast {
+                        sender: handle.clone(),
                         msg,
                     });
                     if let Ok(broadcast_frame) = broadcast_frame {
@@ -113,50 +113,4 @@ pub async fn serve(addr: &str) -> Result<(), IoError> {
     });
 
     Ok(())
-}
-
-pub struct ClientFrame(u8, Frame);
-
-#[derive(Debug, PartialEq, Eq, Hash, BorshSerialize, BorshDeserialize)]
-pub enum Frame {
-    Login(String),
-    LoginResponse(LoginResponse),
-    Msg(String),
-    MsgReceipt(u8),
-    Broadcast { sender: Option<String>, msg: String },
-}
-
-#[derive(Debug, PartialEq, Eq, Hash, BorshSerialize, BorshDeserialize)]
-pub enum LoginResponse {
-    Ok,
-    Taken,
-    Invalid,
-}
-
-#[derive(Debug, thiserror::Error)]
-pub enum DecodeError {
-    #[error("this server only accepts binary websocket frames")]
-    InvalidWebsocketFrame,
-    #[error("invalid mini-chat frame")]
-    InvalidFrame,
-}
-
-impl TryFrom<Message> for Frame {
-    type Error = DecodeError;
-
-    fn try_from(msg: Message) -> Result<Self, Self::Error> {
-        if let Message::Binary(bytes) = msg {
-            Frame::try_from_slice(&bytes).map_err(|_| DecodeError::InvalidFrame)
-        } else {
-            Err(DecodeError::InvalidWebsocketFrame)
-        }
-    }
-}
-
-impl TryFrom<Frame> for Message {
-    type Error = ();
-
-    fn try_from(frame: Frame) -> Result<Self, Self::Error> {
-        Ok(Message::Binary(frame.try_to_vec().map_err(|_| ())?))
-    }
 }
