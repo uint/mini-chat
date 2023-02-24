@@ -8,19 +8,21 @@ pub struct ClientFrame {
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, BorshSerialize, BorshDeserialize)]
+#[repr(u8)]
 pub enum ClientFrameType {
-    Login(String),
-    Msg(String),
+    Login(String) = 0,
+    Msg(String) = 1,
 }
 
 #[derive(Debug, PartialEq, Eq, Hash, BorshSerialize, BorshDeserialize)]
+#[repr(u8)]
 pub enum ServerFrame {
-    Okay(u8),
-    Err(u8, String),
-    Broadcast { sender: String, msg: String },
-    Present(String),
-    Login(String),
-    Logout(String),
+    Okay(u8) = 0,
+    Err(u8, String) = 1,
+    Broadcast { sender: String, msg: String } = 2,
+    Present(String) = 3,
+    Login(String) = 4,
+    Logout(String) = 5,
 }
 
 #[derive(Debug, thiserror::Error)]
