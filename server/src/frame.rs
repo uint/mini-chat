@@ -1,5 +1,4 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use tungstenite::Message;
 
 #[derive(Debug, PartialEq, Eq, Hash, BorshSerialize, BorshDeserialize)]
 pub struct ClientFrame {
@@ -14,7 +13,7 @@ pub enum ClientFrameType {
     Msg(String) = 1,
 }
 
-#[derive(Debug, PartialEq, Eq, Hash, BorshSerialize, BorshDeserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, BorshSerialize, BorshDeserialize)]
 #[repr(u8)]
 pub enum ServerFrame {
     Okay(u8) = 0,
@@ -31,44 +30,4 @@ pub enum DecodeError {
     InvalidWebsocketFrame,
     #[error("invalid mini-chat frame")]
     InvalidFrame,
-}
-
-impl TryFrom<Message> for ClientFrame {
-    type Error = DecodeError;
-
-    fn try_from(msg: Message) -> Result<Self, Self::Error> {
-        if let Message::Binary(bytes) = msg {
-            Self::try_from_slice(&bytes).map_err(|_| DecodeError::InvalidFrame)
-        } else {
-            Err(DecodeError::InvalidWebsocketFrame)
-        }
-    }
-}
-
-impl TryFrom<Message> for ServerFrame {
-    type Error = DecodeError;
-
-    fn try_from(msg: Message) -> Result<Self, Self::Error> {
-        if let Message::Binary(bytes) = msg {
-            Self::try_from_slice(&bytes).map_err(|_| DecodeError::InvalidFrame)
-        } else {
-            Err(DecodeError::InvalidWebsocketFrame)
-        }
-    }
-}
-
-impl TryFrom<ClientFrame> for Message {
-    type Error = ();
-
-    fn try_from(frame: ClientFrame) -> Result<Self, Self::Error> {
-        Ok(Message::Binary(frame.try_to_vec().map_err(|_| ())?))
-    }
-}
-
-impl TryFrom<ServerFrame> for Message {
-    type Error = ();
-
-    fn try_from(frame: ServerFrame) -> Result<Self, Self::Error> {
-        Ok(Message::Binary(frame.try_to_vec().map_err(|_| ())?))
-    }
 }

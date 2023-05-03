@@ -1,12 +1,11 @@
 mod suite;
 
-use server::serve;
-
+use server::{serve_tcp, ws::ws_sink_stream};
 use suite::Client;
 
 #[tokio::test]
 async fn broadcast() {
-    serve("127.0.0.1:3746").await.unwrap();
+    serve_tcp("127.0.0.1:3746", ws_sink_stream).await.unwrap();
     let mut bob = Client::new("bob", "ws://127.0.0.1:3746").await;
     let mut jolene = Client::new("jolene", "ws://127.0.0.1:3746").await;
     let mut lurker = Client::new("samantha", "ws://127.0.0.1:3746").await;
