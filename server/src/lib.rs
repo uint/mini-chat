@@ -1,7 +1,7 @@
 pub mod frame;
+pub mod protocol;
 mod state;
 mod stream;
-pub mod ws;
 
 use std::{
     collections::HashMap,
@@ -30,8 +30,6 @@ async fn handle_connection<SNK, STR>(
     STR: Stream<Item = Result<ClientFrame, DecodeError>> + Unpin,
     SNK: Sink<ServerFrame, Error = ()>,
 {
-    // TODO: abstract away the transport used to send/receive frames (WS in this case)
-
     // Insert the write part of this peer to the peer map.
     let (tx, rx) = unbounded();
     peer_map.lock().unwrap().insert(addr, tx.clone());

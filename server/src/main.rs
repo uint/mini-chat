@@ -1,4 +1,4 @@
-use server::ws::ws_sink_stream;
+use server::protocol::ws::ws_sink_stream;
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
