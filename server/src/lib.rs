@@ -8,10 +8,9 @@ use frame::DecodeError;
 use futures_channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::{future, pin_mut, Future, Sink, SinkExt, Stream, StreamExt};
 
+use crate::frame::{ClientFrame, ClientFrameType, ServerFrame};
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::RwLock;
-
-use crate::frame::{ClientFrame, ClientFrameType, ServerFrame};
 
 type Tx = UnboundedSender<ServerFrame>;
 type PeerMap = Arc<RwLock<HashMap<String, Tx>>>;
@@ -133,17 +132,15 @@ where
     let listener = try_socket.expect("Failed to bind");
     println!("Listening on: {}", addr);
 
-    tokio::spawn(async move {
-        let listener = listener;
-        let state = state;
+    let listener = listener;
+    let state = state;
 
-        while let Ok((tcp_stream, addr)) = listener.accept().await {
-            let fut = stream_builder(tcp_stream);
-            let (sink, stream) = fut.await;
+    while let Ok((tcp_stream, addr)) = listener.accept().await {
+        let fut = stream_builder(tcp_stream);
+        let (sink, stream) = fut.await;
 
-            tokio::spawn(handle_connection(state.clone(), sink, stream, addr));
-        }
-    });
+        tokio::spawn(handle_connection(state.clone(), sink, stream, addr));
+    }
 
     Ok(())
 }

@@ -5,34 +5,11 @@ use std::sync::Mutex;
 use lazy_static::lazy_static;
 
 use server::{frame::ServerFrame, protocol::ws::ws_sink_stream, serve_tcp};
-use suite::Client;
-
-struct SocketProvider {
-    cur: Mutex<u32>,
-}
-
-impl SocketProvider {
-    fn new() -> Self {
-        Self {
-            cur: Mutex::new(3333),
-        }
-    }
-
-    fn issue(&self) -> String {
-        let mut lock = self.cur.lock().unwrap();
-        *lock += 1;
-        format!("127.0.0.1:{}", *lock)
-    }
-}
-
-lazy_static! {
-    static ref SOCKET_PROVIDER: SocketProvider = SocketProvider::new();
-}
+use suite::{run_ws_server, Client};
 
 #[tokio::test]
 async fn login_broadcast() {
-    let url = SOCKET_PROVIDER.issue();
-    serve_tcp(&url, ws_sink_stream).await.unwrap();
+    let url = run_ws_server().await;
     let mut bob = Client::new("bob", &url).await;
     let jolene = Client::new("jolene", &url).await;
 
@@ -45,8 +22,7 @@ async fn login_broadcast() {
 
 #[tokio::test]
 async fn whos_present_on_login() {
-    let url = SOCKET_PROVIDER.issue();
-    serve_tcp(&url, ws_sink_stream).await.unwrap();
+    let url = run_ws_server().await;
     let bob = Client::new("bob", &url).await;
     let mut jolene = Client::new("jolene", &url).await;
     let mut lurker = Client::new("samantha", &url).await;
@@ -68,8 +44,7 @@ async fn whos_present_on_login() {
 
 #[tokio::test]
 async fn logout_broadcast() {
-    let url = SOCKET_PROVIDER.issue();
-    serve_tcp(&url, ws_sink_stream).await.unwrap();
+    let url = run_ws_server().await;
     let bob = Client::new("bob", &url).await;
     let mut jolene = Client::new("jolene", &url).await;
     let mut lurker = Client::new("samantha", &url).await;
@@ -93,8 +68,7 @@ async fn logout_broadcast() {
 
 #[tokio::test]
 async fn msg_broadcast() {
-    let url = SOCKET_PROVIDER.issue();
-    serve_tcp(&url, ws_sink_stream).await.unwrap();
+    let url = run_ws_server().await;
     let mut bob = Client::new("bob", &url).await;
     let mut jolene = Client::new("jolene", &url).await;
     let mut lurker = Client::new("samantha", &url).await;

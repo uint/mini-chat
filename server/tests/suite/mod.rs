@@ -1,12 +1,51 @@
-use std::time::Duration;
+use std::{sync::Mutex, time::Duration};
 
 use futures_util::{stream::ReadyChunks, SinkExt, StreamExt};
-use server::frame::{ClientFrame, ClientFrameType, ServerFrame};
+use lazy_static::lazy_static;
+use server::{
+    frame::{ClientFrame, ClientFrameType, ServerFrame},
+    protocol::ws::ws_sink_stream,
+    serve_tcp,
+};
 use tokio::net::TcpStream;
 use tokio::select;
 use tokio_tungstenite::{connect_async, MaybeTlsStream, WebSocketStream};
 
 type Stream = WebSocketStream<MaybeTlsStream<TcpStream>>;
+
+struct SocketProvider {
+    cur: Mutex<u32>,
+}
+
+impl SocketProvider {
+    fn new() -> Self {
+        Self {
+            cur: Mutex::new(3333),
+        }
+    }
+
+    fn issue(&self) -> String {
+        let mut lock = self.cur.lock().unwrap();
+        *lock += 1;
+        format!("127.0.0.1:{}", *lock)
+    }
+}
+
+lazy_static! {
+    static ref SOCKET_PROVIDER: SocketProvider = SocketProvider::new();
+}
+
+pub async fn run_ws_server() -> String {
+    let url = SOCKET_PROVIDER.issue();
+    let url_c = url.clone();
+    tokio::spawn(async move {
+        serve_tcp(&url_c, ws_sink_stream).await.unwrap();
+    });
+
+    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+
+    url
+}
 
 pub struct Client {
     stream: ReadyChunks<Stream>,
