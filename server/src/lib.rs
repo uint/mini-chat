@@ -122,7 +122,7 @@ where
 pub async fn serve_tcp<F, FUT, SNK, STR>(addr: &str, stream_builder: F) -> Result<(), IoError>
 where
     F: Fn(TcpStream) -> FUT + Send + 'static,
-    FUT: Future<Output = (SNK, STR)> + Send,
+    FUT: Future<Output = Result<(SNK, STR), String>> + Send,
     STR: Stream<Item = Result<ClientFrame, DecodeError>> + Send + Unpin + 'static,
     SNK: Sink<ServerFrame, Error = ()> + Send + Unpin + 'static,
 {
@@ -136,10 +136,9 @@ where
     let state = state;
 
     while let Ok((tcp_stream, addr)) = listener.accept().await {
-        let fut = stream_builder(tcp_stream);
-        let (sink, stream) = fut.await;
-
-        tokio::spawn(handle_connection(state.clone(), sink, stream, addr));
+        if let Ok((sink, stream)) = stream_builder(tcp_stream).await {
+            tokio::spawn(handle_connection(state.clone(), sink, stream, addr));
+        }
     }
 
     Ok(())

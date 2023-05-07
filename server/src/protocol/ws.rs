@@ -54,14 +54,17 @@ impl From<tungstenite::Error> for DecodeError {
 
 pub async fn ws_sink_stream(
     tcp_stream: TcpStream,
-) -> (
-    impl Sink<ServerFrame, Error = ()>,
-    impl Stream<Item = Result<ClientFrame, DecodeError>>,
-) {
+) -> Result<
+    (
+        impl Sink<ServerFrame, Error = ()>,
+        impl Stream<Item = Result<ClientFrame, DecodeError>>,
+    ),
+    String,
+> {
     let ws_stream = tokio_tungstenite::accept_async(tcp_stream)
         .await
-        .expect("Error during the websocket handshake occurred");
-
+        .map_err(|e| format!("Error during the websocket handshake occurred: {}", e))?;
     let (sink, stream) = ws_stream.split();
-    (wrap_client_sink(sink), wrap_client_stream(stream))
+
+    Ok((wrap_client_sink(sink), wrap_client_stream(stream)))
 }

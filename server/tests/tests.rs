@@ -1,9 +1,5 @@
 mod suite;
 
-use std::sync::Mutex;
-
-use lazy_static::lazy_static;
-
 use server::{frame::ServerFrame, protocol::ws::ws_sink_stream, serve_tcp};
 use suite::{run_ws_server, Client};
 
