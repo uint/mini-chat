@@ -1,6 +1,6 @@
 mod suite;
 
-use server::{frame::ServerFrame, protocol::ws::ws_sink_stream, serve_tcp};
+use server::frame::ServerFrame;
 use suite::{run_ws_server, Client};
 
 #[tokio::test]
