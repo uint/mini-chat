@@ -1,25 +1,20 @@
 pub mod frame;
 pub mod protocol;
-mod state;
 mod stream;
 
-use std::{
-    collections::HashMap,
-    io::Error as IoError,
-    net::SocketAddr,
-    sync::{Arc, Mutex},
-};
+use std::{collections::HashMap, io::Error as IoError, net::SocketAddr, sync::Arc};
 
 use frame::DecodeError;
 use futures_channel::mpsc::{unbounded, UnboundedSender};
 use futures_util::{future, pin_mut, Future, Sink, SinkExt, Stream, StreamExt};
 
 use tokio::net::{TcpListener, TcpStream};
+use tokio::sync::RwLock;
 
 use crate::frame::{ClientFrame, ClientFrameType, ServerFrame};
 
 type Tx = UnboundedSender<ServerFrame>;
-type PeerMap = Arc<Mutex<HashMap<SocketAddr, Tx>>>;
+type PeerMap = Arc<RwLock<HashMap<String, Tx>>>;
 
 async fn handle_connection<SNK, STR>(
     peer_map: PeerMap,
@@ -32,25 +27,28 @@ async fn handle_connection<SNK, STR>(
 {
     // Insert the write part of this peer to the peer map.
     let (tx, rx) = unbounded();
-    peer_map.lock().unwrap().insert(addr, tx.clone());
 
-    let handle = match handle_login(&peer_map, &mut sink, &mut stream).await {
-        Ok(handle) => handle,
-        _ => return,
-    };
+    if let Ok(handle) = handle_login(&peer_map, &mut sink, &mut stream).await {
+        peer_map.write().await.insert(handle.clone(), tx.clone());
 
-    let handle_frames = handle_chat_msgs(&peer_map, tx.clone(), &mut stream, &addr, &handle);
-    let receive_from_others = rx.map(Ok).forward(sink);
+        let handle_frames = handle_chat_msgs(&peer_map, tx.clone(), &mut stream, &handle);
+        let receive_from_others = rx.map(Ok).forward(sink);
 
-    pin_mut!(handle_frames, receive_from_others);
-    future::select(handle_frames, receive_from_others).await;
+        pin_mut!(handle_frames, receive_from_others);
+        future::select(handle_frames, receive_from_others).await;
+
+        // could be smarter to hold a handle here that removes from the peer map on drop
+        peer_map.write().await.remove(&handle);
+        for peer in peer_map.read().await.values() {
+            let _ = peer.unbounded_send(ServerFrame::Logout(handle.clone()));
+        }
+    }
 
     println!("{} disconnected", &addr);
-    peer_map.lock().unwrap().remove(&addr);
 }
 
 async fn handle_login<SNK, STR>(
-    _peer_map: &PeerMap,
+    peer_map: &PeerMap,
     sink: &mut SNK,
     stream: &mut STR,
 ) -> Result<String, ()>
@@ -64,8 +62,20 @@ where
             data: ClientFrameType::Login(handle),
         }) = ClientFrame::try_from(msg)
         {
-            let accepted_msg = ServerFrame::Okay(id);
-            sink.send(accepted_msg).await?;
+            if peer_map.read().await.contains_key(&handle) {
+                sink.send(ServerFrame::Err(id, "handle taken".to_string()))
+                    .await?;
+                return Err(());
+            }
+            sink.send(ServerFrame::Okay(id)).await?;
+
+            for (peer_handle, tx) in peer_map.read().await.iter() {
+                let _ = tx.unbounded_send(ServerFrame::Login(handle.clone()));
+                let _ = sink
+                    .send(ServerFrame::Present(peer_handle.to_string()))
+                    .await;
+            }
+
             Ok(handle)
         } else {
             Err(())
@@ -75,13 +85,8 @@ where
     }
 }
 
-async fn handle_chat_msgs<STR>(
-    peer_map: &PeerMap,
-    tx: Tx,
-    stream: &mut STR,
-    addr: &SocketAddr,
-    handle: &str,
-) where
+async fn handle_chat_msgs<STR>(peer_map: &PeerMap, tx: Tx, stream: &mut STR, handle: &str)
+where
     STR: Stream<Item = Result<ClientFrame, DecodeError>> + Unpin,
 {
     while let Some(frame) = stream.next().await {
@@ -93,12 +98,11 @@ async fn handle_chat_msgs<STR>(
                         return;
                     }
 
-                    let peers = peer_map.lock().unwrap();
+                    let peers = peer_map.read().await;
 
-                    // We want to broadcast the message to everyone except ourselves.
                     let broadcast_recipients = peers
                         .iter()
-                        .filter(|(peer_addr, _)| peer_addr != &addr)
+                        .filter(|(peer_handle, _)| peer_handle.as_str() != handle)
                         .map(|(_, ws_sink)| ws_sink);
 
                     let broadcast_frame = ServerFrame::Broadcast {
@@ -123,7 +127,7 @@ where
     STR: Stream<Item = Result<ClientFrame, DecodeError>> + Send + Unpin + 'static,
     SNK: Sink<ServerFrame, Error = ()> + Send + Unpin + 'static,
 {
-    let state = PeerMap::new(Mutex::new(HashMap::new()));
+    let state = PeerMap::new(RwLock::new(HashMap::new()));
 
     let try_socket = TcpListener::bind(addr).await;
     let listener = try_socket.expect("Failed to bind");

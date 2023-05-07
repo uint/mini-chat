@@ -16,6 +16,7 @@ pub struct Client {
 
 impl Client {
     pub async fn new(handle: &str, url: &str) -> Self {
+        let url = format!("ws://{}", url);
         let (stream, _) = connect_async(url).await.expect("Failed to connect");
 
         let mut client = Self {
@@ -42,9 +43,8 @@ impl Client {
         id
     }
 
-    pub async fn send_msg(&mut self, msg: &str) {
-        let id = self.send_frame(ClientFrameType::Msg(msg.to_string())).await;
-        self.assert_frame(ServerFrame::Okay(id)).await;
+    pub async fn send_msg(&mut self, msg: &str) -> u8 {
+        self.send_frame(ClientFrameType::Msg(msg.to_string())).await
     }
 
     pub async fn assert_frame(&mut self, exp_frame: ServerFrame) {
