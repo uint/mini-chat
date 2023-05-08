@@ -8,9 +8,9 @@ class FakeChatRepo {
   FakeChatRepo();
 
   final List<Message> _messages = [
-    Message(User("bob"), "hi"),
-    Message(User("jolene"), "yo"),
-    Message(User("bob"), "wyd")
+    Message(DateTime.now(), User("bob"), "hi"),
+    Message(DateTime.now(), User("jolene"), "yo"),
+    Message(DateTime.now(), User("bob"), "wyd")
   ];
 
   List<Message> getMessages() {
@@ -45,10 +45,11 @@ final chatMsgsFutureProvider = FutureProvider.autoDispose<List<Message>>((ref) {
 });
 
 class Message {
+  final DateTime dateTime;
   final User user;
   final String msg;
 
-  Message(this.user, this.msg);
+  Message(this.dateTime, this.user, this.msg);
 }
 
 class User {
