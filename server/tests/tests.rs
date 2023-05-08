@@ -1,6 +1,6 @@
 mod suite;
 
-use server::frame::ServerFrame;
+use minichat_server::frame::ServerFrame;
 use suite::{run_ws_server, Client};
 
 #[tokio::test]

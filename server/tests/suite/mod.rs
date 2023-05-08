@@ -2,7 +2,7 @@ use std::{sync::Mutex, time::Duration};
 
 use futures_util::{stream::ReadyChunks, SinkExt, StreamExt};
 use lazy_static::lazy_static;
-use server::{
+use minichat_server::{
     frame::{ClientFrame, ClientFrameType, ServerFrame},
     protocol::ws::ws_sink_stream,
     serve_tcp,

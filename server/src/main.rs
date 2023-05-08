@@ -1,4 +1,4 @@
-use server::protocol::ws::ws_sink_stream;
+use minichat_server::protocol::ws::ws_sink_stream;
 
 #[tokio::main]
 async fn main() -> Result<(), std::io::Error> {
@@ -6,7 +6,7 @@ async fn main() -> Result<(), std::io::Error> {
         .nth(1)
         .unwrap_or_else(|| "127.0.0.1:8080".to_string());
 
-    server::serve_tcp(&addr, ws_sink_stream).await?;
+    minichat_server::serve_tcp(&addr, ws_sink_stream).await?;
 
     Ok(())
 }

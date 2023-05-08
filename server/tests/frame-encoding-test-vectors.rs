@@ -6,7 +6,7 @@
 #[test]
 fn server_frames() {
     use borsh::BorshSerialize as _;
-    use server::frame::ServerFrame;
+    use minichat_server::frame::ServerFrame;
 
     let frame = ServerFrame::Okay(2);
     assert_eq!(frame.try_to_vec().unwrap(), [0, 2]);
