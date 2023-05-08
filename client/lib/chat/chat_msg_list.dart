@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:minichat_client/async.dart';
 import 'package:minichat_client/chat_repo.dart';
 
-class Chat extends StatelessWidget {
-  const Chat({super.key});
+class MessageList extends ConsumerWidget {
+  const MessageList({super.key});
 
   @override
-  Widget build(BuildContext ctx) {
-    return ListView.builder(
-      //anchor: 1.0,
-      reverse: true,
-      itemCount: 10,
-      itemBuilder: (BuildContext context, int index) {
-        var time = DateTime.now().subtract(Duration(minutes: index));
-        var msg = index == 5
-            ? Message(time, User("jolene"),
-                "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.")
-            : Message(time, User("bob"), "hi");
-        return MessageView(msg);
-      },
-    );
+  Widget build(BuildContext ctx, WidgetRef ref) {
+    final msgList = ref.watch(chatMsgsStreamProvider);
+
+    return AsyncValueWidget(
+        value: msgList,
+        data: (msgs) => ListView.builder(
+              reverse: true,
+              itemCount: msgs.length,
+              itemBuilder: (BuildContext context, int index) {
+                return MessageView(msgs[msgs.length - index - 1]);
+              },
+            ));
   }
 }
 
@@ -33,7 +33,7 @@ class MessageView extends StatelessWidget {
       padding: const EdgeInsets.all(4.0),
       child: Row(children: [
         SizedBox(
-            width: 50,
+            width: 45,
             child: Text(
                 style: const TextStyle(fontSize: 12, color: Colors.grey),
                 textAlign: TextAlign.center,

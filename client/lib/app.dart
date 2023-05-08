@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
-
-import 'chat.dart';
+import 'package:minichat_client/chat/chat.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
