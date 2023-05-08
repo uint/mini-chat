@@ -39,3 +39,5 @@
 *.cc -linguist-detectable
 *.cpp -linguist-detectable
 CMakeLists.txt -linguist-detectable
+*.cmake -linguist-detectable
+*.html -linguist-detectable
