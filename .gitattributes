@@ -38,3 +38,4 @@
 *.h -linguist-detectable
 *.cc -linguist-detectable
 *.cpp -linguist-detectable
+CMakeLists.txt -linguist-detectable
