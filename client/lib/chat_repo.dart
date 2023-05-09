@@ -1,9 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/painting.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:rxdart/rxdart.dart';
 
 class FakeChatRepo {
   FakeChatRepo();
@@ -18,17 +18,23 @@ class FakeChatRepo {
     Message(DateTime.now(), User("rob"), "wow, spammy"),
   ];
 
+  StreamController<Message> stream = StreamController();
+
   List<Message> getMessages() {
     return _hardcodedMessages;
   }
 
   void pushMessage(Message msg) {
-    _hardcodedMessages.add(msg);
+    stream.add(msg);
   }
 
   Stream<Message> watchMessages() async* {
     for (var msg in _hardcodedMessages) {
-      await Future.delayed(const Duration(seconds: 2));
+      await Future.delayed(const Duration(milliseconds: 600));
+      yield msg;
+    }
+
+    await for (var msg in stream.stream) {
       yield msg;
     }
   }
