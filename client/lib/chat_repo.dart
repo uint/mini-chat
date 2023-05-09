@@ -8,9 +8,9 @@ import 'package:rxdart/rxdart.dart';
 class FakeChatRepo {
   FakeChatRepo();
 
-  final _messages = [
+  final _hardcodedMessages = [
     Message(
-        DateTime.now().subtract(const Duration(minutes: 3)), User("bob"), "hi"),
+        DateTime.now().subtract(const Duration(minutes: 3)), User("rob"), "hi"),
     Message(DateTime.now(), User("jolene"), "yo"),
     Message(DateTime.now(), User("rob"), "wyd"),
     Message(DateTime.now(), User("scholar"),
@@ -19,15 +19,15 @@ class FakeChatRepo {
   ];
 
   List<Message> getMessages() {
-    return _messages;
+    return _hardcodedMessages;
   }
 
   void pushMessage(Message msg) {
-    _messages.add(msg);
+    _hardcodedMessages.add(msg);
   }
 
   Stream<Message> watchMessages() async* {
-    for (var msg in _messages) {
+    for (var msg in _hardcodedMessages) {
       await Future.delayed(const Duration(seconds: 2));
       yield msg;
     }

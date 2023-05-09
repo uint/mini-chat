@@ -18,7 +18,9 @@ class MessageListState extends ConsumerState<MessageList> {
   Widget _buildItem(
       BuildContext context, int index, Animation<double> animation) {
     return SizeTransition(
-        sizeFactor: animation, child: MessageView(stateList[index]));
+        sizeFactor: animation,
+        child: FadeTransition(
+            opacity: animation, child: MessageView(stateList[index])));
   }
 
   @override
