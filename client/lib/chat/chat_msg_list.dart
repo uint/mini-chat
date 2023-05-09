@@ -1,18 +1,43 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:minichat_client/async.dart';
 import 'package:minichat_client/chat_repo.dart';
 
+class MessageListController {
+  void Function(Message)? _addMessage;
+
+  void register(void Function(Message) addMessageImpl) {
+    _addMessage = addMessageImpl;
+  }
+
+  void addMessage(Message msg) {
+    _addMessage?.call(msg);
+  }
+}
+
 class MessageList extends ConsumerStatefulWidget {
-  MessageList({Key? key}) : super(key: key);
+  const MessageList({Key? key, this.controller}) : super(key: key);
+
+  final MessageListController? controller;
 
   @override
   MessageListState createState() => MessageListState();
 }
 
 class MessageListState extends ConsumerState<MessageList> {
+  @override
+  void initState() {
+    super.initState();
+    widget.controller?.register(addMsg);
+  }
+
   List<Message> stateList = [];
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
+
+  void addMsg(Message msg) {
+    var list = _listKey.currentState;
+    stateList.insert(0, msg);
+    list!.insertItem(0);
+  }
 
   // Used to build list items that haven't been removed.
   Widget _buildItem(
@@ -24,12 +49,10 @@ class MessageListState extends ConsumerState<MessageList> {
   }
 
   @override
-  Widget build(BuildContext ctx) {
+  Widget build(BuildContext context) {
     ref.listen(chatMsgsStreamProvider, (_, msg) {
       if (msg.value != null) {
-        var list = _listKey.currentState;
-        stateList.insert(0, msg.value!);
-        list!.insertItem(0);
+        addMsg(msg.value!);
       }
     });
 

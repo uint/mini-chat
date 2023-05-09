@@ -18,14 +18,16 @@ class FakeChatRepo {
     Message(DateTime.now(), User("rob"), "wow, spammy"),
   ];
 
+  String? handle;
   StreamController<Message> stream = StreamController();
 
   List<Message> getMessages() {
     return _hardcodedMessages;
   }
 
-  void pushMessage(Message msg) {
-    stream.add(msg);
+  void sendMessage(String msg) async {
+    await Future.delayed(const Duration(seconds: 1));
+    //stream.add(Message(DateTime.now(), User("me"), msg));
   }
 
   Stream<Message> watchMessages() async* {
@@ -52,6 +54,12 @@ final chatMsgsStreamProvider = StreamProvider.autoDispose<Message>((ref) {
 final chatMsgsFutureProvider = FutureProvider.autoDispose<List<Message>>((ref) {
   final chatRepo = ref.watch(chatRepositoryProvider);
   return chatRepo.getMessages();
+});
+
+final chatSendMsgProvider =
+    FutureProvider.autoDispose.family<void, String>((ref, msg) {
+  final chatRepo = ref.watch(chatRepositoryProvider);
+  return chatRepo.sendMessage(msg);
 });
 
 class Message {

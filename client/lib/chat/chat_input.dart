@@ -5,14 +5,19 @@ import 'package:minichat_client/chat_repo.dart';
 class ChatInput extends ConsumerWidget {
   ChatInput({
     super.key,
+    this.onSubmit,
   });
 
+  final void Function(AsyncValue<void>, String)? onSubmit;
   FocusNode focusNode = FocusNode();
-  String _text = "";
+  final TextEditingController _controller = TextEditingController();
 
   void _submit(WidgetRef ref, String msg) {
-    var repo = ref.read(chatRepositoryProvider);
-    repo.pushMessage(Message(DateTime.now(), User("me"), msg));
+    if (msg.isNotEmpty) {
+      var fut = ref.read(chatSendMsgProvider(msg));
+      onSubmit?.call(fut, msg);
+      _controller.text = "";
+    }
     focusNode.requestFocus();
   }
 
@@ -22,12 +27,10 @@ class ChatInput extends ConsumerWidget {
       children: [
         Expanded(
             child: TextField(
-          onChanged: (t) {
-            _text = t;
-          },
           onSubmitted: (String msg) {
             _submit(ref, msg);
           },
+          controller: _controller,
           focusNode: focusNode,
           decoration: const InputDecoration(
             border: OutlineInputBorder(),
@@ -35,7 +38,7 @@ class ChatInput extends ConsumerWidget {
           ),
         )),
         TextFieldTapRegion(child: FloatingActionButton(onPressed: () {
-          _submit(ref, _text);
+          _submit(ref, _controller.text);
         })),
       ],
     );
