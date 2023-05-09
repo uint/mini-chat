@@ -7,7 +7,14 @@ class ChatInput extends ConsumerWidget {
     super.key,
   });
 
+  FocusNode focusNode = FocusNode();
   String _text = "";
+
+  void _submit(WidgetRef ref, String msg) {
+    var repo = ref.read(chatRepositoryProvider);
+    repo.pushMessage(Message(DateTime.now(), User("me"), msg));
+    focusNode.requestFocus();
+  }
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -18,15 +25,18 @@ class ChatInput extends ConsumerWidget {
           onChanged: (t) {
             _text = t;
           },
+          onSubmitted: (String msg) {
+            _submit(ref, msg);
+          },
+          focusNode: focusNode,
           decoration: const InputDecoration(
             border: OutlineInputBorder(),
             hintText: 'enter your message',
           ),
         )),
-        FloatingActionButton(onPressed: () {
-          var repo = ref.read(chatRepositoryProvider);
-          repo.pushMessage(Message(DateTime.now(), User("me"), _text));
-        }),
+        TextFieldTapRegion(child: FloatingActionButton(onPressed: () {
+          _submit(ref, _text);
+        })),
       ],
     );
   }

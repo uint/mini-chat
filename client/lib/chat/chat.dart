@@ -10,7 +10,7 @@ class Chat extends StatelessWidget {
     return Column(
       children: [
         Expanded(
-          child: MessageList(),
+          child: TextFieldTapRegion(child: MessageList()),
         ),
         ChatInput(),
       ],
