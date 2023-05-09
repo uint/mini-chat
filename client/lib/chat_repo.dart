@@ -8,7 +8,7 @@ import 'package:rxdart/rxdart.dart';
 class FakeChatRepo {
   FakeChatRepo();
 
-  final _messages = InMemoryStore([
+  final _messages = [
     Message(
         DateTime.now().subtract(const Duration(minutes: 3)), User("bob"), "hi"),
     Message(DateTime.now(), User("jolene"), "yo"),
@@ -16,24 +16,21 @@ class FakeChatRepo {
     Message(DateTime.now(), User("scholar"),
         "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum."),
     Message(DateTime.now(), User("rob"), "wow, spammy"),
-  ]);
+  ];
 
   List<Message> getMessages() {
-    return _messages.value;
+    return _messages;
   }
 
   void pushMessage(Message msg) {
-    var list = _messages.value;
-    list.add(msg);
-    _messages.value = list;
+    _messages.add(msg);
   }
 
-  Future<List<Message>> fetchMessages() async {
-    return _messages.value;
-  }
-
-  Stream<List<Message>> watchMessages() {
-    return _messages.stream;
+  Stream<Message> watchMessages() async* {
+    for (var msg in _messages) {
+      await Future.delayed(const Duration(seconds: 2));
+      yield msg;
+    }
   }
 }
 
@@ -41,14 +38,14 @@ final chatRepositoryProvider = Provider<FakeChatRepo>((ref) {
   return FakeChatRepo();
 });
 
-final chatMsgsStreamProvider = StreamProvider.autoDispose<List<Message>>((ref) {
+final chatMsgsStreamProvider = StreamProvider.autoDispose<Message>((ref) {
   final chatRepo = ref.watch(chatRepositoryProvider);
   return chatRepo.watchMessages();
 });
 
 final chatMsgsFutureProvider = FutureProvider.autoDispose<List<Message>>((ref) {
   final chatRepo = ref.watch(chatRepositoryProvider);
-  return chatRepo.fetchMessages();
+  return chatRepo.getMessages();
 });
 
 class Message {
@@ -71,25 +68,4 @@ Color handleColor(String handle) {
   var dg = md5.convert(bytes).bytes;
 
   return Color.fromARGB(255, dg[0], dg[1], dg[2]);
-}
-
-/// An in-memory store backed by BehaviorSubject that can be used to
-/// store the data for all the fake repositories in the app.
-class InMemoryStore<T> {
-  InMemoryStore(T initial) : _subject = BehaviorSubject<T>.seeded(initial);
-
-  /// The BehaviorSubject that holds the data
-  final BehaviorSubject<T> _subject;
-
-  /// The output stream that can be used to listen to the data
-  Stream<T> get stream => _subject.stream;
-
-  /// A synchronous getter for the current value
-  T get value => _subject.value;
-
-  /// A setter for updating the value
-  set value(T value) => _subject.add(value);
-
-  /// Don't forget to call this when done
-  void close() => _subject.close();
 }

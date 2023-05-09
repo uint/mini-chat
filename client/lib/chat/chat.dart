@@ -8,7 +8,7 @@ class Chat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Column(
-      children: const [
+      children: [
         Expanded(
           child: MessageList(),
         ),

@@ -3,22 +3,40 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:minichat_client/async.dart';
 import 'package:minichat_client/chat_repo.dart';
 
-class MessageList extends ConsumerWidget {
-  const MessageList({super.key});
+class MessageList extends ConsumerStatefulWidget {
+  MessageList({Key? key}) : super(key: key);
 
   @override
-  Widget build(BuildContext ctx, WidgetRef ref) {
-    final msgList = ref.watch(chatMsgsStreamProvider);
+  MessageListState createState() => MessageListState();
+}
 
-    return AsyncValueWidget(
-        value: msgList,
-        data: (msgs) => ListView.builder(
-              reverse: true,
-              itemCount: msgs.length,
-              itemBuilder: (BuildContext context, int index) {
-                return MessageView(msgs[msgs.length - index - 1]);
-              },
-            ));
+class MessageListState extends ConsumerState<MessageList> {
+  List<Message> stateList = [];
+  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
+
+  // Used to build list items that haven't been removed.
+  Widget _buildItem(
+      BuildContext context, int index, Animation<double> animation) {
+    return SizeTransition(
+        sizeFactor: animation, child: MessageView(stateList[index]));
+  }
+
+  @override
+  Widget build(BuildContext ctx) {
+    ref.listen(chatMsgsStreamProvider, (_, msg) {
+      if (msg.value != null) {
+        var list = _listKey.currentState;
+        stateList.insert(0, msg.value!);
+        list!.insertItem(0);
+      }
+    });
+
+    return AnimatedList(
+      reverse: true,
+      key: _listKey,
+      initialItemCount: 0,
+      itemBuilder: _buildItem,
+    );
   }
 }
 
