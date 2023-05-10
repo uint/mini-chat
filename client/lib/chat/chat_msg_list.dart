@@ -3,14 +3,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:minichat_client/chat_repo.dart';
 
 class MessageListController {
-  void Function(Message)? _addMessage;
+  void Function(Message, {Future<void>? completionFuture})? _addMessage;
 
-  void register(void Function(Message) addMessageImpl) {
+  void register(
+      void Function(Message, {Future<void>? completionFuture}) addMessageImpl) {
     _addMessage = addMessageImpl;
   }
 
-  void addMessage(Message msg) {
-    _addMessage?.call(msg);
+  void addMessage(Message msg, {Future<void>? completionFuture}) {
+    _addMessage?.call(msg, completionFuture: completionFuture);
   }
 }
 
@@ -30,12 +31,12 @@ class MessageListState extends ConsumerState<MessageList> {
     widget.controller?.register(addMsg);
   }
 
-  List<Message> stateList = [];
+  List<AsyncMessage> stateList = [];
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
 
-  void addMsg(Message msg) {
+  void addMsg(Message msg, {Future<void>? completionFuture}) {
     var list = _listKey.currentState;
-    stateList.insert(0, msg);
+    stateList.insert(0, AsyncMessage(msg, completionFuture: completionFuture));
     list!.insertItem(0);
   }
 
@@ -65,13 +66,66 @@ class MessageListState extends ConsumerState<MessageList> {
   }
 }
 
-class MessageView extends StatelessWidget {
-  final Message msg;
+enum AsyncMessageState {
+  waiting,
+  error,
+  done;
+}
 
-  const MessageView(this.msg, {super.key});
+class AsyncMessage {
+  AsyncMessage(this.msg, {this.completionFuture})
+      : state = completionFuture == null
+            ? AsyncMessageState.done
+            : AsyncMessageState.waiting {
+    completionFuture
+        ?.then((_) => state = AsyncMessageState.done)
+        .catchError((_) => state = AsyncMessageState.error);
+  }
+
+  final Message msg;
+  final Future<void>? completionFuture;
+  AsyncMessageState state;
+}
+
+class MessageView extends StatelessWidget {
+  const MessageView(this.asyncMsg, {super.key});
+
+  final AsyncMessage asyncMsg;
 
   @override
   Widget build(BuildContext context) {
+    var successText = Text(asyncMsg.msg.msg);
+    var errorText = Text(
+        style: const TextStyle(
+            color: Colors.red, decoration: TextDecoration.lineThrough),
+        asyncMsg.msg.msg);
+    var waitingText =
+        Text(style: const TextStyle(color: Colors.grey), asyncMsg.msg.msg);
+
+    Widget msgText;
+    switch (asyncMsg.state) {
+      case AsyncMessageState.waiting:
+        msgText = FutureBuilder(
+            future: asyncMsg.completionFuture,
+            builder: (BuildContext context, AsyncSnapshot snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return waitingText;
+              } else if (snapshot.hasError &&
+                  snapshot.connectionState == ConnectionState.done) {
+                return errorText;
+              } else {
+                return successText;
+              }
+            });
+        break;
+      case AsyncMessageState.error:
+        msgText = errorText;
+        break;
+      case AsyncMessageState.done:
+        msgText = successText;
+        break;
+    }
+
     return Padding(
       padding: const EdgeInsets.all(4.0),
       child: Row(children: [
@@ -80,14 +134,14 @@ class MessageView extends StatelessWidget {
             child: Text(
                 style: const TextStyle(fontSize: 12, color: Colors.grey),
                 textAlign: TextAlign.center,
-                displayTime(msg.dateTime))),
+                displayTime(asyncMsg.msg.dateTime))),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8.0),
-          child: Text(msg.user.handle,
-              style: TextStyle(color: msg.user.color),
+          child: Text(asyncMsg.msg.user.handle,
+              style: TextStyle(color: asyncMsg.msg.user.color),
               textAlign: TextAlign.center),
         ),
-        Flexible(child: Text(msg.msg))
+        Flexible(child: msgText)
       ]),
     );
   }

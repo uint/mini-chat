@@ -14,8 +14,10 @@ class Chat extends StatefulWidget {
 class _ChatState extends State<Chat> {
   final controller = MessageListController();
 
-  void _onSubmit(AsyncValue<void> asyncValue, String msg) async {
-    controller.addMessage(Message(DateTime.now(), User("me"), msg));
+  void _onSubmit(String msg, WidgetRef ref) async {
+    var repo = ref.read(chatRepositoryProvider);
+    controller.addMessage(Message(DateTime.now(), User("me"), msg),
+        completionFuture: repo.sendMessage(msg));
   }
 
   @override

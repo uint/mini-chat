@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/painting.dart';
 import 'package:crypto/crypto.dart';
@@ -20,14 +21,20 @@ class FakeChatRepo {
 
   String? handle;
   StreamController<Message> stream = StreamController();
+  int _count = 0;
+  Random _rng = Random();
 
   List<Message> getMessages() {
     return _hardcodedMessages;
   }
 
-  void sendMessage(String msg) async {
-    await Future.delayed(const Duration(seconds: 1));
-    //stream.add(Message(DateTime.now(), User("me"), msg));
+  Future<void> sendMessage(String msg) async {
+    await Future.delayed(Duration(milliseconds: 600 + _rng.nextInt(1200)));
+
+    // external dependencies fail sometimes!
+    if (_count++ % 5 == 3) {
+      throw "noes!";
+    }
   }
 
   Stream<Message> watchMessages() async* {
