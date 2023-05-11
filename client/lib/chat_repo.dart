@@ -22,7 +22,7 @@ class FakeChatRepo {
   String? handle;
   StreamController<Message> stream = StreamController();
   int _count = 0;
-  Random _rng = Random();
+  final Random _rng = Random();
 
   List<Message> getMessages() {
     return _hardcodedMessages;
