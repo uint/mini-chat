@@ -94,12 +94,12 @@ class MessageView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    var successText = Text(asyncMsg.msg.msg);
-    var errorText = Text(
+    Widget successText() => Text(asyncMsg.msg.msg);
+    Widget errorText() => Text(
         style: const TextStyle(
             color: Colors.red, decoration: TextDecoration.lineThrough),
         asyncMsg.msg.msg);
-    var waitingText =
+    Widget waitingText() =>
         Text(style: const TextStyle(color: Colors.grey), asyncMsg.msg.msg);
 
     Widget msgText;
@@ -109,20 +109,20 @@ class MessageView extends StatelessWidget {
             future: asyncMsg.completionFuture,
             builder: (BuildContext context, AsyncSnapshot snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return waitingText;
+                return waitingText();
               } else if (snapshot.hasError &&
                   snapshot.connectionState == ConnectionState.done) {
-                return errorText;
+                return errorText();
               } else {
-                return successText;
+                return successText();
               }
             });
         break;
       case AsyncMessageState.error:
-        msgText = errorText;
+        msgText = errorText();
         break;
       case AsyncMessageState.done:
-        msgText = successText;
+        msgText = successText();
         break;
     }
 
