@@ -2,7 +2,7 @@
 
 Just a little toy project, mostly to learn Flutter and get a refresher in async Rust. One stone, two birds!
 
-![app preview](/.assets/demo.gif)
+<img src="/.assets/demo.gif" width="478" height="195"/>
 
 # How to run
 
