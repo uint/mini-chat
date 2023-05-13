@@ -119,6 +119,10 @@ where
     }
 }
 
+/// The `stream_builder` callable is meant to split the [`TcpStream`] and decorate both the
+/// stream and sink. It can e.g. implement WebSocket as a transport for mini-chat frames.
+///
+/// This design should make it easier to, in the future, add other transports like raw TCP.
 pub async fn serve_tcp<F, FUT, SNK, STR>(addr: &str, stream_builder: F) -> Result<(), IoError>
 where
     F: Fn(TcpStream) -> FUT + Send + 'static,
