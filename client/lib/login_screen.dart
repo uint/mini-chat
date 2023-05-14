@@ -79,6 +79,7 @@ class LoginFormState extends ConsumerState<LoginForm> {
                 handleController: _handleController,
                 processing: _processing,
                 onChanged: (_) => _validate(),
+                onSubmit: (_processing || !_valid) ? null : _submit,
               ),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16.0),
@@ -99,22 +100,26 @@ class HandleField extends StatelessWidget {
   const HandleField({
     super.key,
     onChanged,
+    onSubmit,
     required TextEditingController handleController,
     required bool processing,
   })  : _handleController = handleController,
         _processing = processing,
-        _onChanged = onChanged;
+        _onChanged = onChanged,
+        _onSubmit = onSubmit;
 
   static final validCharacters = RegExp(r'^[a-zA-Z0-9_]+$');
 
   final TextEditingController _handleController;
   final bool _processing;
   final void Function(String)? _onChanged;
+  final void Function()? _onSubmit;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
       onChanged: _onChanged,
+      onFieldSubmitted: (_) => _onSubmit?.call(),
       textAlign: TextAlign.center,
       //autovalidateMode: AutovalidateMode.onUserInteraction,
       controller: _handleController,
