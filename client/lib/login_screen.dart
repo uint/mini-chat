@@ -59,22 +59,31 @@ class LoginFormState extends ConsumerState<LoginForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            HandleField(
-                handleController: _handleController, processing: _processing),
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 16.0),
-              child: Center(
-                child: SubmitButton(onPressed: _processing ? null : _submit),
-              ),
+    return Center(
+      child: Container(
+        width: 220,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.all(8.0),
+        child: Form(
+          key: _formKey,
+          child: Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                HandleField(
+                    handleController: _handleController,
+                    processing: _processing),
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16.0),
+                  child: Center(
+                    child:
+                        SubmitButton(onPressed: _processing ? null : _submit),
+                  ),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -97,12 +106,13 @@ class HandleField extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextFormField(
+      textAlign: TextAlign.center,
       autovalidateMode: AutovalidateMode.onUserInteraction,
       controller: _handleController,
       enabled: !_processing,
       decoration: const InputDecoration(
         border: UnderlineInputBorder(),
-        labelText: 'Handle',
+        label: Center(child: Text("Handle")),
       ),
       validator: (value) {
         if (value == null || value.isEmpty) {
@@ -110,7 +120,7 @@ class HandleField extends StatelessWidget {
         }
 
         if (value.length > 16) {
-          return 'The handle can be at most 16 characters long';
+          return 'Please use at most 16 characters';
         }
 
         if (!validCharacters.hasMatch(value)) {
