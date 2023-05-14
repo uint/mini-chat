@@ -132,16 +132,15 @@ class SubmitButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return ElevatedButton.icon(
-      icon: _onPressed == null
+    return ElevatedButton(
+      onPressed: _onPressed,
+      child: _onPressed == null
           ? const SizedBox(
               height: 22,
               width: 22,
               child:
                   CircularProgressIndicator(strokeWidth: 3, color: Colors.grey))
-          : const Icon(Icons.arrow_right_alt),
-      onPressed: _onPressed,
-      label: const Text("Submit"),
+          : const Text("Log in"),
       style: ElevatedButton.styleFrom(fixedSize: const Size(150, 50)),
     );
   }
