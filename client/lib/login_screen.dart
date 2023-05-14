@@ -31,12 +31,30 @@ class LoginFormState extends ConsumerState<LoginForm> {
   final _handleController = TextEditingController();
   bool _processing = false;
 
-  static final validCharacters = RegExp(r'^[a-zA-Z0-9_]+$');
-
-  void setProcessing(bool state) {
+  void _setProcessing(bool state) {
     setState(() {
       _processing = state;
     });
+  }
+
+  void _submit() {
+    if (_formKey.currentState!.validate()) {
+      _setProcessing(true);
+
+      var repo = ref.read(chatRepositoryProvider);
+
+      repo
+          .logIn(_handleController.text)
+          .timeout(const Duration(seconds: 10))
+          .then((_) => Navigator.push(context,
+                  MaterialPageRoute<void>(builder: (BuildContext context) {
+                return Chat();
+              })))
+          .catchError((e) => ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(content: Text("error: $e")),
+              ))
+          .whenComplete(() => _setProcessing(false));
+    }
   }
 
   @override
@@ -48,72 +66,83 @@ class LoginFormState extends ConsumerState<LoginForm> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            TextFormField(
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              controller: _handleController,
-              enabled: !_processing,
-              decoration: const InputDecoration(
-                border: UnderlineInputBorder(),
-                labelText: 'Handle',
-              ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter your preferred handle';
-                }
-
-                if (value.length > 16) {
-                  return 'The handle can be at most 16 characters long';
-                }
-
-                if (!validCharacters.hasMatch(value)) {
-                  return 'Allowed characters: a-Z, 0-9, _';
-                }
-                return null;
-              },
-            ),
+            HandleField(
+                handleController: _handleController, processing: _processing),
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16.0),
               child: Center(
-                child: ElevatedButton.icon(
-                  icon: _processing
-                      ? const SizedBox(
-                          height: 22,
-                          width: 22,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 3, color: Colors.grey))
-                      : const Icon(Icons.arrow_right_alt),
-                  onPressed: _processing
-                      ? null
-                      : () {
-                          if (_formKey.currentState!.validate()) {
-                            setProcessing(true);
-
-                            var repo = ref.read(chatRepositoryProvider);
-
-                            repo
-                                .logIn(_handleController.text)
-                                .timeout(const Duration(seconds: 10))
-                                .then((_) => Navigator.push(context,
-                                        MaterialPageRoute<void>(
-                                            builder: (BuildContext context) {
-                                      return Chat();
-                                    })))
-                                .catchError((e) =>
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      SnackBar(content: Text("error: $e")),
-                                    ))
-                                .whenComplete(() => setProcessing(false));
-                          }
-                        },
-                  label: const Text("Submit"),
-                  style:
-                      ElevatedButton.styleFrom(fixedSize: const Size(150, 50)),
-                ),
+                child: SubmitButton(onPressed: _processing ? null : _submit),
               ),
             ),
           ],
         ),
       ),
+    );
+  }
+}
+
+class HandleField extends StatelessWidget {
+  const HandleField({
+    super.key,
+    required TextEditingController handleController,
+    required bool processing,
+  })  : _handleController = handleController,
+        _processing = processing;
+
+  static final validCharacters = RegExp(r'^[a-zA-Z0-9_]+$');
+
+  final TextEditingController _handleController;
+  final bool _processing;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      controller: _handleController,
+      enabled: !_processing,
+      decoration: const InputDecoration(
+        border: UnderlineInputBorder(),
+        labelText: 'Handle',
+      ),
+      validator: (value) {
+        if (value == null || value.isEmpty) {
+          return 'Please enter your preferred handle';
+        }
+
+        if (value.length > 16) {
+          return 'The handle can be at most 16 characters long';
+        }
+
+        if (!validCharacters.hasMatch(value)) {
+          return 'Allowed characters: a-Z, 0-9, _';
+        }
+        return null;
+      },
+    );
+  }
+}
+
+class SubmitButton extends ConsumerWidget {
+  const SubmitButton({
+    super.key,
+    void Function()? onPressed,
+  }) : _onPressed = onPressed;
+
+  final void Function()? _onPressed;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return ElevatedButton.icon(
+      icon: _onPressed == null
+          ? const SizedBox(
+              height: 22,
+              width: 22,
+              child:
+                  CircularProgressIndicator(strokeWidth: 3, color: Colors.grey))
+          : const Icon(Icons.arrow_right_alt),
+      onPressed: _onPressed,
+      label: const Text("Submit"),
+      style: ElevatedButton.styleFrom(fixedSize: const Size(150, 50)),
     );
   }
 }
