@@ -19,13 +19,22 @@ class FakeChatRepo {
     Message(DateTime.now(), User("rob"), "wow, spammy"),
   ];
 
-  String? handle;
+  String? _handle;
   StreamController<Message> stream = StreamController();
   int _count = 0;
   final Random _rng = Random();
 
   List<Message> getMessages() {
     return _hardcodedMessages;
+  }
+
+  Future<void> logIn(String handle) async {
+    await Future.delayed(Duration(milliseconds: 600 + _rng.nextInt(1200)));
+    if (handle == "system") {
+      // this exists just to test error handling
+      throw "system is a reserved handle";
+    }
+    _handle = handle;
   }
 
   Future<void> sendMessage(String msg) async {

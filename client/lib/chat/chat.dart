@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:minichat_client/app_bar.dart';
 import 'package:minichat_client/chat/chat_input.dart';
 import 'package:minichat_client/chat/chat_msg_list.dart';
 import 'package:minichat_client/chat_repo.dart';
@@ -22,15 +23,20 @@ class _ChatState extends State<Chat> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: TextFieldTapRegion(child: MessageList(controller: controller)),
+    return Scaffold(
+        appBar: AppBar(
+          title: const Text('mini-chat'),
         ),
-        ChatInput(
-          onSubmit: _onSubmit,
-        ),
-      ],
-    );
+        body: Column(
+          children: [
+            Expanded(
+              child: TextFieldTapRegion(
+                  child: MessageList(controller: controller)),
+            ),
+            ChatInput(
+              onSubmit: _onSubmit,
+            ),
+          ],
+        ));
   }
 }

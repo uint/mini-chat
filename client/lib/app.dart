@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:minichat_client/chat/chat.dart';
+import 'package:minichat_client/login_screen.dart';
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
@@ -10,9 +11,9 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'mini-chat',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
+        primarySwatch: Colors.green,
       ),
-      home: Scaffold(body: Chat()),
+      home: const LoginScreen(),
     );
   }
 }
