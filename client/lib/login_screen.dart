@@ -66,23 +66,19 @@ class LoginFormState extends ConsumerState<LoginForm> {
         padding: const EdgeInsets.all(8.0),
         child: Form(
           key: _formKey,
-          child: Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                HandleField(
-                    handleController: _handleController,
-                    processing: _processing),
-                Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 16.0),
-                  child: Center(
-                    child:
-                        SubmitButton(onPressed: _processing ? null : _submit),
-                  ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              HandleField(
+                  handleController: _handleController, processing: _processing),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                child: Center(
+                  child: SubmitButton(onPressed: _processing ? null : _submit),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
       ),
