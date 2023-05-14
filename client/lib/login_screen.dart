@@ -30,6 +30,7 @@ class LoginFormState extends ConsumerState<LoginForm> {
   final _formKey = GlobalKey<FormState>();
   final _handleController = TextEditingController();
   bool _processing = false;
+  bool _valid = false;
 
   void _setProcessing(bool state) {
     setState(() {
@@ -37,24 +38,28 @@ class LoginFormState extends ConsumerState<LoginForm> {
     });
   }
 
+  void _validate() {
+    setState(() {
+      _valid = _formKey.currentState?.validate() ?? false;
+    });
+  }
+
   void _submit() {
-    if (_formKey.currentState!.validate()) {
-      _setProcessing(true);
+    _setProcessing(true);
 
-      var repo = ref.read(chatRepositoryProvider);
+    var repo = ref.read(chatRepositoryProvider);
 
-      repo
-          .logIn(_handleController.text)
-          .timeout(const Duration(seconds: 10))
-          .then((_) => Navigator.push(context,
-                  MaterialPageRoute<void>(builder: (BuildContext context) {
-                return Chat();
-              })))
-          .catchError((e) => ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text("error: $e")),
-              ))
-          .whenComplete(() => _setProcessing(false));
-    }
+    repo
+        .logIn(_handleController.text)
+        .timeout(const Duration(seconds: 10))
+        .then((_) => Navigator.push(context,
+                MaterialPageRoute<void>(builder: (BuildContext context) {
+              return Chat();
+            })))
+        .catchError((e) => ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text("error: $e")),
+            ))
+        .whenComplete(() => _setProcessing(false));
   }
 
   @override
@@ -71,11 +76,15 @@ class LoginFormState extends ConsumerState<LoginForm> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               HandleField(
-                  handleController: _handleController, processing: _processing),
+                handleController: _handleController,
+                processing: _processing,
+                onChanged: (_) => _validate(),
+              ),
               Padding(
                 padding: const EdgeInsets.symmetric(vertical: 16.0),
                 child: Center(
-                  child: SubmitButton(onPressed: _processing ? null : _submit),
+                  child: SubmitButton(_processing,
+                      onPressed: (_processing || !_valid) ? null : _submit),
                 ),
               ),
             ],
@@ -89,21 +98,25 @@ class LoginFormState extends ConsumerState<LoginForm> {
 class HandleField extends StatelessWidget {
   const HandleField({
     super.key,
+    onChanged,
     required TextEditingController handleController,
     required bool processing,
   })  : _handleController = handleController,
-        _processing = processing;
+        _processing = processing,
+        _onChanged = onChanged;
 
   static final validCharacters = RegExp(r'^[a-zA-Z0-9_]+$');
 
   final TextEditingController _handleController;
   final bool _processing;
+  final void Function(String)? _onChanged;
 
   @override
   Widget build(BuildContext context) {
     return TextFormField(
+      onChanged: _onChanged,
       textAlign: TextAlign.center,
-      autovalidateMode: AutovalidateMode.onUserInteraction,
+      //autovalidateMode: AutovalidateMode.onUserInteraction,
       controller: _handleController,
       enabled: !_processing,
       decoration: const InputDecoration(
@@ -129,18 +142,20 @@ class HandleField extends StatelessWidget {
 }
 
 class SubmitButton extends ConsumerWidget {
-  const SubmitButton({
+  const SubmitButton(
+    this._processing, {
     super.key,
     void Function()? onPressed,
   }) : _onPressed = onPressed;
 
   final void Function()? _onPressed;
+  final bool _processing;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return ElevatedButton(
       onPressed: _onPressed,
-      child: _onPressed == null
+      child: _processing
           ? const SizedBox(
               height: 22,
               width: 22,
