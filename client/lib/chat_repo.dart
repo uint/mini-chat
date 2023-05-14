@@ -6,7 +6,48 @@ import 'package:flutter/painting.dart';
 import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-class FakeChatRepo {
+abstract class ChatRepo {
+  String? get handle;
+
+  List<Message> getMessageHistory();
+
+  Future<void> logIn(String handle);
+
+  Future<void> sendMessage(String msg);
+
+  Stream<Message> watchMessages();
+}
+
+class WsChatRepo implements ChatRepo {
+  String? _handle;
+
+  @override
+  String? get handle {
+    return _handle;
+  }
+
+  @override
+  List<Message> getMessageHistory() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> logIn(String handle) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> sendMessage(String msg) async {
+    throw UnimplementedError();
+  }
+
+  @override
+  Stream<Message> watchMessages() async* {
+    throw UnimplementedError();
+  }
+}
+
+class FakeChatRepo implements ChatRepo {
   FakeChatRepo();
 
   final _hardcodedMessages = [
@@ -20,18 +61,15 @@ class FakeChatRepo {
   ];
 
   String? _handle;
-  StreamController<Message> stream = StreamController();
   int _count = 0;
   final Random _rng = Random();
 
-  String? get handle {
-    return _handle;
-  }
-
-  List<Message> getMessages() {
+  @override
+  List<Message> getMessageHistory() {
     return _hardcodedMessages;
   }
 
+  @override
   Future<void> logIn(String handle) async {
     await Future.delayed(Duration(milliseconds: 600 + _rng.nextInt(1200)));
     if (handle == "system") {
@@ -41,6 +79,7 @@ class FakeChatRepo {
     _handle = handle;
   }
 
+  @override
   Future<void> sendMessage(String msg) async {
     await Future.delayed(Duration(milliseconds: 600 + _rng.nextInt(1200)));
 
@@ -50,19 +89,19 @@ class FakeChatRepo {
     }
   }
 
+  @override
   Stream<Message> watchMessages() async* {
     for (var msg in _hardcodedMessages) {
       await Future.delayed(const Duration(milliseconds: 600));
       yield msg;
     }
-
-    await for (var msg in stream.stream) {
-      yield msg;
-    }
   }
+
+  @override
+  String? get handle => _handle;
 }
 
-final chatRepositoryProvider = Provider<FakeChatRepo>((ref) {
+final chatRepositoryProvider = Provider<ChatRepo>((ref) {
   return FakeChatRepo();
 });
 
@@ -73,7 +112,7 @@ final chatMsgsStreamProvider = StreamProvider.autoDispose<Message>((ref) {
 
 final chatMsgsFutureProvider = FutureProvider.autoDispose<List<Message>>((ref) {
   final chatRepo = ref.watch(chatRepositoryProvider);
-  return chatRepo.getMessages();
+  return chatRepo.getMessageHistory();
 });
 
 final chatSendMsgProvider =
