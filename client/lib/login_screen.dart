@@ -10,7 +10,7 @@ class LoginScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('login'),
+        title: const Text('Login'),
       ),
       body: const LoginForm(),
     );
@@ -33,6 +33,12 @@ class LoginFormState extends ConsumerState<LoginForm> {
 
   static final validCharacters = RegExp(r'^[a-zA-Z0-9_]+$');
 
+  void setProcessing(bool state) {
+    setState(() {
+      _processing = state;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -45,9 +51,10 @@ class LoginFormState extends ConsumerState<LoginForm> {
             TextFormField(
               autovalidateMode: AutovalidateMode.onUserInteraction,
               controller: _handleController,
+              enabled: !_processing,
               decoration: const InputDecoration(
                 border: UnderlineInputBorder(),
-                labelText: 'Enter your handle',
+                labelText: 'Handle',
               ),
               validator: (value) {
                 if (value == null || value.isEmpty) {
@@ -67,15 +74,22 @@ class LoginFormState extends ConsumerState<LoginForm> {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 16.0),
               child: Center(
-                child: ElevatedButton(
+                child: ElevatedButton.icon(
+                  icon: _processing
+                      ? const SizedBox(
+                          height: 22,
+                          width: 22,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 3, color: Colors.grey))
+                      : const Icon(Icons.arrow_right_alt),
                   onPressed: _processing
                       ? null
                       : () {
                           if (_formKey.currentState!.validate()) {
-                            setState(() {
-                              _processing = true;
-                            });
+                            setProcessing(true);
+
                             var repo = ref.read(chatRepositoryProvider);
+
                             repo
                                 .logIn(_handleController.text)
                                 .timeout(const Duration(seconds: 10))
@@ -88,12 +102,12 @@ class LoginFormState extends ConsumerState<LoginForm> {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       SnackBar(content: Text("error: $e")),
                                     ))
-                                .whenComplete(() => setState(() {
-                                      _processing = false;
-                                    }));
+                                .whenComplete(() => setProcessing(false));
                           }
                         },
-                  child: const Text('Submit'),
+                  label: const Text("Submit"),
+                  style:
+                      ElevatedButton.styleFrom(fixedSize: const Size(150, 50)),
                 ),
               ),
             ),

@@ -11,7 +11,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'mini-chat',
       theme: ThemeData(
-        primarySwatch: Colors.green,
+        primarySwatch: Colors.lightGreen,
       ),
       home: const LoginScreen(),
     );

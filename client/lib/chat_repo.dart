@@ -24,6 +24,10 @@ class FakeChatRepo {
   int _count = 0;
   final Random _rng = Random();
 
+  String? get handle {
+    return _handle;
+  }
+
   List<Message> getMessages() {
     return _hardcodedMessages;
   }
