@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:minichat_client/app_bar.dart';
 import 'package:minichat_client/chat/chat_input.dart';
 import 'package:minichat_client/chat/chat_msg_list.dart';
-import 'package:minichat_client/chat_repo.dart';
+import 'package:minichat_client/chat_repo/chat_repo.dart';
 
 class Chat extends ConsumerStatefulWidget {
   Chat({super.key});

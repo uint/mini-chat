@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:minichat_client/chat/async_message.dart';
-import 'package:minichat_client/chat_repo.dart';
+import 'package:minichat_client/chat_repo/chat_repo.dart';
 
 class AsyncMessageView extends StatelessWidget {
   const AsyncMessageView(this.asyncMsg, {super.key});

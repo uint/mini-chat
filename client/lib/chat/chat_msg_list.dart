@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:minichat_client/chat/async_message.dart';
 import 'package:minichat_client/chat/chat_msg_view.dart';
-import 'package:minichat_client/chat_repo.dart';
+import 'package:minichat_client/chat_repo/chat_repo.dart';
 
 class MessageListController {
   void Function(Message, {Future<void>? completionFuture})? _addMessage;

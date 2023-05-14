@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:minichat_client/chat_repo.dart';
 
 typedef OnSubmit = void Function(String, WidgetRef ref);
 

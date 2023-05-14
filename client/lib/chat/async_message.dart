@@ -1,4 +1,4 @@
-import 'package:minichat_client/chat_repo.dart';
+import 'package:minichat_client/chat_repo/chat_repo.dart';
 
 enum AsyncMessageState {
   waiting,

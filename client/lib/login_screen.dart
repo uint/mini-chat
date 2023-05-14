@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:minichat_client/chat/chat.dart';
-import 'package:minichat_client/chat_repo.dart';
+import 'package:minichat_client/chat_repo/chat_repo.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
