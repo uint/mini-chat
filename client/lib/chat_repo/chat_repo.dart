@@ -3,8 +3,6 @@ import 'dart:convert';
 
 import 'package:flutter/painting.dart';
 import 'package:crypto/crypto.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:minichat_client/chat_repo/fake_chat_repo.dart';
 
 abstract class ChatRepo {
   String? get handle;
@@ -17,26 +15,6 @@ abstract class ChatRepo {
 
   Stream<Message> watchMessages();
 }
-
-final chatRepositoryProvider = Provider<ChatRepo>((ref) {
-  return FakeChatRepo();
-});
-
-final chatMsgsStreamProvider = StreamProvider.autoDispose<Message>((ref) {
-  final chatRepo = ref.watch(chatRepositoryProvider);
-  return chatRepo.watchMessages();
-});
-
-final chatMsgsFutureProvider = FutureProvider.autoDispose<List<Message>>((ref) {
-  final chatRepo = ref.watch(chatRepositoryProvider);
-  return chatRepo.getMessageHistory();
-});
-
-final chatSendMsgProvider =
-    FutureProvider.autoDispose.family<void, String>((ref, msg) {
-  final chatRepo = ref.watch(chatRepositoryProvider);
-  return chatRepo.sendMessage(msg);
-});
 
 class Message {
   final DateTime dateTime;

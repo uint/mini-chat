@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:minichat_client/chat/chat.dart';
 import 'package:minichat_client/login_screen.dart';
 
 class MyApp extends StatelessWidget {

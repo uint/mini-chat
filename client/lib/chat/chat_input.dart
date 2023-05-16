@@ -1,35 +1,32 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-typedef OnSubmit = void Function(String, WidgetRef ref);
+typedef OnSubmit = void Function(String);
 
-class ChatInput extends ConsumerWidget {
+class ChatInput extends StatelessWidget {
   ChatInput({
     super.key,
     this.onSubmit,
   });
 
   final OnSubmit? onSubmit;
-  FocusNode focusNode = FocusNode();
+  final FocusNode focusNode = FocusNode();
   final TextEditingController _controller = TextEditingController();
 
-  void _submit(WidgetRef ref, String msg) {
+  void _submit(String msg) {
     if (msg.isNotEmpty) {
-      onSubmit?.call(msg, ref);
+      onSubmit?.call(msg);
       _controller.text = "";
     }
     focusNode.requestFocus();
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return Row(
       children: [
         Expanded(
             child: TextField(
-          onSubmitted: (String msg) {
-            _submit(ref, msg);
-          },
+          onSubmitted: _submit,
           controller: _controller,
           focusNode: focusNode,
           decoration: const InputDecoration(
@@ -38,7 +35,7 @@ class ChatInput extends ConsumerWidget {
           ),
         )),
         TextFieldTapRegion(child: FloatingActionButton(onPressed: () {
-          _submit(ref, _controller.text);
+          _submit(_controller.text);
         })),
       ],
     );

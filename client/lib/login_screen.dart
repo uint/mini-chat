@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:minichat_client/chat/chat.dart';
-import 'package:minichat_client/chat_repo/chat_repo.dart';
+import 'package:minichat_client/chat_repo/fake_chat_repo.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -17,7 +16,7 @@ class LoginScreen extends StatelessWidget {
   }
 }
 
-class LoginForm extends ConsumerStatefulWidget {
+class LoginForm extends StatefulWidget {
   const LoginForm({super.key});
 
   @override
@@ -26,7 +25,7 @@ class LoginForm extends ConsumerStatefulWidget {
   }
 }
 
-class LoginFormState extends ConsumerState<LoginForm> {
+class LoginFormState extends State<LoginForm> {
   final _formKey = GlobalKey<FormState>();
   final _handleController = TextEditingController();
   bool _processing = false;
@@ -47,14 +46,14 @@ class LoginFormState extends ConsumerState<LoginForm> {
   void _submit() {
     _setProcessing(true);
 
-    var repo = ref.read(chatRepositoryProvider);
+    var repo = FakeChatRepo();
 
     repo
         .logIn(_handleController.text)
         .timeout(const Duration(seconds: 10))
         .then((_) => Navigator.push(context,
                 MaterialPageRoute<void>(builder: (BuildContext context) {
-              return Chat();
+              return Chat(repo);
             })))
         .catchError((e) => ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text("error: $e")),
@@ -146,7 +145,7 @@ class HandleField extends StatelessWidget {
   }
 }
 
-class SubmitButton extends ConsumerWidget {
+class SubmitButton extends StatelessWidget {
   const SubmitButton(
     this._processing, {
     super.key,
@@ -157,9 +156,10 @@ class SubmitButton extends ConsumerWidget {
   final bool _processing;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     return ElevatedButton(
       onPressed: _onPressed,
+      style: ElevatedButton.styleFrom(fixedSize: const Size(150, 50)),
       child: _processing
           ? const SizedBox(
               height: 22,
@@ -167,7 +167,6 @@ class SubmitButton extends ConsumerWidget {
               child:
                   CircularProgressIndicator(strokeWidth: 3, color: Colors.grey))
           : const Text("Log in"),
-      style: ElevatedButton.styleFrom(fixedSize: const Size(150, 50)),
     );
   }
 }

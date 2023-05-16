@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:minichat_client/chat/async_message.dart';
 import 'package:minichat_client/chat/chat_msg_view.dart';
 import 'package:minichat_client/chat_repo/chat_repo.dart';
@@ -17,7 +16,7 @@ class MessageListController {
   }
 }
 
-class MessageList extends ConsumerStatefulWidget {
+class MessageList extends StatefulWidget {
   const MessageList({Key? key, this.controller}) : super(key: key);
 
   final MessageListController? controller;
@@ -26,7 +25,7 @@ class MessageList extends ConsumerStatefulWidget {
   MessageListState createState() => MessageListState();
 }
 
-class MessageListState extends ConsumerState<MessageList> {
+class MessageListState extends State<MessageList> {
   @override
   void initState() {
     super.initState();
@@ -53,12 +52,6 @@ class MessageListState extends ConsumerState<MessageList> {
 
   @override
   Widget build(BuildContext context) {
-    ref.listen(chatMsgsStreamProvider, (_, msg) {
-      if (msg.value != null) {
-        addMsg(msg.value!);
-      }
-    });
-
     return AnimatedList(
       reverse: true,
       key: _listKey,
