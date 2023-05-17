@@ -55,7 +55,7 @@ class MessageListState extends State<MessageList> {
     return AnimatedList(
       reverse: true,
       key: _listKey,
-      initialItemCount: 0,
+      initialItemCount: stateList.length,
       itemBuilder: _buildItem,
     );
   }
