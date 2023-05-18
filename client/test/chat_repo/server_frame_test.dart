@@ -1,6 +1,6 @@
 import 'dart:typed_data';
 
-import 'package:minichat_client/chat_repo/frame.dart';
+import 'package:minichat_client/chat_repo/server_frame.dart';
 import 'package:test/test.dart';
 
 void main() {

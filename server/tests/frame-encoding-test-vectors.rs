@@ -26,3 +26,23 @@ fn server_frames() {
     let frame = ServerFrame::Present("a".to_string());
     assert_eq!(frame.try_to_vec().unwrap(), [3, 1, 0, 0, 0, 97]);
 }
+
+#[test]
+fn client_frames() {
+    use borsh::BorshDeserialize as _;
+    use minichat_server::frame::{ClientFrame, ClientFrameType};
+
+    let login_bytes = [103, 0, 3, 0, 0, 0, 98, 111, 98];
+    let expected = ClientFrame {
+        id: 103,
+        data: ClientFrameType::Login("bob".to_string()),
+    };
+    assert_eq!(ClientFrame::try_from_slice(&login_bytes).unwrap(), expected);
+
+    let msg_bytes = [22, 1, 2, 0, 0, 0, 104, 105];
+    let expected = ClientFrame {
+        id: 22,
+        data: ClientFrameType::Msg("hi".to_string()),
+    };
+    assert_eq!(ClientFrame::try_from_slice(&msg_bytes).unwrap(), expected);
+}

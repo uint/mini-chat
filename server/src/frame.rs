@@ -1,5 +1,8 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 
+// Remember: the order of named fields in a struct intended for borsh (de)serialization matters!
+// Changing this order breaks the protocol. Plan accordingly.
+
 #[derive(Debug, PartialEq, Eq, Hash, BorshSerialize, BorshDeserialize)]
 pub struct ClientFrame {
     pub id: u8,
