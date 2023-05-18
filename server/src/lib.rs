@@ -55,30 +55,28 @@ where
     STR: Stream<Item = Result<ClientFrame, DecodeError>> + Unpin,
     SNK: Sink<ServerFrame, Error = ()> + Unpin,
 {
-    if let Some(Ok(msg)) = stream.next().await {
-        if let Ok(ClientFrame {
-            id,
-            data: ClientFrameType::Login(handle),
-        }) = ClientFrame::try_from(msg)
-        {
-            if peer_map.read().await.contains_key(&handle) {
-                sink.send(ServerFrame::Err(id, "handle taken".to_string()))
-                    .await?;
-                return Err(());
-            }
-            sink.send(ServerFrame::Okay(id)).await?;
-
-            for (peer_handle, tx) in peer_map.read().await.iter() {
-                let _ = tx.unbounded_send(ServerFrame::Login(handle.clone()));
-                let _ = sink
-                    .send(ServerFrame::Present(peer_handle.to_string()))
-                    .await;
-            }
-
-            Ok(handle)
-        } else {
-            Err(())
+    if let Some(Ok(ClientFrame {
+        id,
+        data: ClientFrameType::Login(handle),
+    })) = stream.next().await
+    {
+        if peer_map.read().await.contains_key(&handle) {
+            sink.send(ServerFrame::Err(id, "handle taken".to_string()))
+                .await?;
+            return Err(());
         }
+        sink.send(ServerFrame::Okay(id)).await?;
+
+        for (peer_handle, tx) in peer_map.read().await.iter() {
+            let _ = tx.unbounded_send(ServerFrame::Login(handle.clone()));
+            let _ = sink
+                .send(ServerFrame::Present(peer_handle.to_string()))
+                .await;
+        }
+
+        println!("{} logged in", &handle);
+
+        Ok(handle)
     } else {
         Err(())
     }
@@ -93,6 +91,7 @@ where
             match request {
                 ClientFrameType::Msg(msg) => {
                     let receipt = ServerFrame::Okay(id);
+
                     if let Err(_) = tx.unbounded_send(receipt) {
                         return;
                     }

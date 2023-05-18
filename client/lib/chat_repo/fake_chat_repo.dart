@@ -54,4 +54,7 @@ class FakeChatRepo implements ChatRepo {
 
   @override
   String? get handle => _handle;
+
+  @override
+  void close() {}
 }

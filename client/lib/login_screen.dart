@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:minichat_client/chat/chat.dart';
 import 'package:minichat_client/chat_repo/fake_chat_repo.dart';
+import 'package:minichat_client/chat_repo/ws_chat_repo.dart';
 
 class LoginScreen extends StatelessWidget {
   const LoginScreen({super.key});
@@ -46,7 +47,8 @@ class LoginFormState extends State<LoginForm> {
   void _submit() {
     _setProcessing(true);
 
-    var repo = FakeChatRepo();
+    //var repo = FakeChatRepo();
+    var repo = WsChatRepo(Uri.parse("ws://127.0.0.1:8080"));
 
     repo
         .logIn(_handleController.text)
@@ -55,10 +57,12 @@ class LoginFormState extends State<LoginForm> {
                 MaterialPageRoute<void>(builder: (BuildContext context) {
               return Chat(repo);
             })))
-        .catchError((e) => ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text("error: $e")),
-            ))
-        .whenComplete(() => _setProcessing(false));
+        .catchError((e) {
+      repo.close();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("error: $e")),
+      );
+    }).whenComplete(() => _setProcessing(false));
   }
 
   @override

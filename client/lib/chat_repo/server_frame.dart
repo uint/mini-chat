@@ -52,8 +52,8 @@ class ServerFrameErr implements ServerFrame {
 
     id = bytes[0];
 
-    var msg_len = decodeUint32(bytes.sublist(1, 5));
-    var expectedByteLen = msg_len + 5;
+    var msgLen = decodeUint32(bytes.sublist(1, 5));
+    var expectedByteLen = msgLen + 5;
 
     if (bytes.length != expectedByteLen) {
       throw "error frame: expected length $expectedByteLen, got ${bytes.length}";
