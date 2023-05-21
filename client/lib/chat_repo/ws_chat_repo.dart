@@ -90,6 +90,7 @@ class WsChatRepo implements ChatRepo {
     return messages.stream;
   }
 
+  @override
   void close() {
     _channel.sink.close();
   }

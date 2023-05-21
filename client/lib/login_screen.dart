@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:minichat_client/chat/chat.dart';
+import 'package:minichat_client/chat_repo/chat_repo.dart';
 import 'package:minichat_client/chat_repo/fake_chat_repo.dart';
 import 'package:minichat_client/chat_repo/ws_chat_repo.dart';
 
@@ -31,6 +32,10 @@ class LoginFormState extends State<LoginForm> {
   final _handleController = TextEditingController();
   bool _processing = false;
   bool _valid = false;
+  static const wsEnvVar = "MC_WS_URL";
+  var repo = const bool.hasEnvironment(wsEnvVar)
+      ? WsChatRepo(Uri.parse(const String.fromEnvironment(wsEnvVar)))
+      : FakeChatRepo();
 
   void _setProcessing(bool state) {
     setState(() {
@@ -46,9 +51,6 @@ class LoginFormState extends State<LoginForm> {
 
   void _submit() {
     _setProcessing(true);
-
-    //var repo = FakeChatRepo();
-    var repo = WsChatRepo(Uri.parse("ws://127.0.0.1:8080"));
 
     repo
         .logIn(_handleController.text)

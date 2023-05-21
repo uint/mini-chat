@@ -14,6 +14,8 @@ abstract class ChatRepo {
   Future<void> sendMessage(String msg);
 
   Stream<Message> watchMessages();
+
+  void close();
 }
 
 class Message {
