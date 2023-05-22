@@ -16,6 +16,10 @@ abstract class ChatRepo {
   Stream<Message> watchMessages();
 
   Future<void> logout();
+
+  Set<User> get users;
+
+  Stream<Set<User>> watchUsers();
 }
 
 class Message {
@@ -31,6 +35,12 @@ class User {
   final Color color;
 
   User(this.handle) : color = handleColor(handle);
+
+  @override
+  int get hashCode => handle.hashCode;
+
+  @override
+  bool operator ==(covariant User other) => handle == other.handle;
 }
 
 Color handleColor(String handle) {

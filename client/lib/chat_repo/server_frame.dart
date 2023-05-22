@@ -13,6 +13,12 @@ abstract class ServerFrame {
         return ServerFrameErr.decode(remaining);
       case 2:
         return ServerFrameBroadcast.decode(remaining);
+      case 3:
+        return ServerFramePresent.decode(remaining);
+      case 4:
+        return ServerFrameLogin.decode(remaining);
+      case 5:
+        return ServerFrameLogout.decode(remaining);
       default:
         throw "unknown message";
     }
@@ -112,6 +118,88 @@ class ServerFrameBroadcast implements ServerFrame {
 
   @override
   int get hashCode => Object.hash(user, msg);
+}
+
+class ServerFramePresent implements ServerFrame {
+  late String handle;
+
+  ServerFramePresent(this.handle);
+
+  ServerFramePresent.decode(Uint8List bytes) {
+    if (bytes.length < 4) {
+      throw "present frame too short";
+    }
+
+    var msgLen = decodeUint32(bytes.sublist(0, 4));
+    var expectedByteLen = msgLen + 4;
+
+    if (bytes.length != expectedByteLen) {
+      throw "present frame: expected length $expectedByteLen, got ${bytes.length}";
+    }
+
+    handle = utf8.decode(bytes.sublist(4));
+  }
+
+  @override
+  bool operator ==(covariant ServerFramePresent other) =>
+      handle == other.handle;
+
+  @override
+  int get hashCode => handle.hashCode;
+}
+
+class ServerFrameLogin implements ServerFrame {
+  late String handle;
+
+  ServerFrameLogin(this.handle);
+
+  ServerFrameLogin.decode(Uint8List bytes) {
+    if (bytes.length < 4) {
+      throw "login frame too short";
+    }
+
+    var msgLen = decodeUint32(bytes.sublist(0, 4));
+    var expectedByteLen = msgLen + 4;
+
+    if (bytes.length != expectedByteLen) {
+      throw "login frame: expected length $expectedByteLen, got ${bytes.length}";
+    }
+
+    handle = utf8.decode(bytes.sublist(4));
+  }
+
+  @override
+  bool operator ==(covariant ServerFrameLogin other) => handle == other.handle;
+
+  @override
+  int get hashCode => handle.hashCode;
+}
+
+class ServerFrameLogout implements ServerFrame {
+  late String handle;
+
+  ServerFrameLogout(this.handle);
+
+  ServerFrameLogout.decode(Uint8List bytes) {
+    if (bytes.length < 4) {
+      throw "logout frame too short";
+    }
+
+    var msgLen = decodeUint32(bytes.sublist(0, 4));
+    var expectedByteLen = msgLen + 4;
+
+    if (bytes.length != expectedByteLen) {
+      throw "logout frame: expected length $expectedByteLen, got ${bytes.length}";
+    }
+
+    handle = utf8.decode(bytes.sublist(4));
+  }
+
+  @override
+  bool operator ==(covariant ServerFrameLogout other) => handle == other.handle;
+
+  @override
+  int get hashCode => handle.hashCode;
 }
 
 int decodeUint32(Uint8List list) {

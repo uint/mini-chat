@@ -2,6 +2,7 @@
 // TODO: test this using dummy ws streams
 
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:web_socket_channel/web_socket_channel.dart';
 
@@ -22,6 +23,7 @@ class WsChatRepo implements ChatRepo {
   StreamController<int> receipts = StreamController.broadcast();
   int msgCount = 0;
   bool _connected = false;
+  final StreamSet<User> _users = StreamSet();
 
   Future<void> _connect() async {
     _channel = WebSocketChannel.connect(uri);
@@ -29,7 +31,7 @@ class WsChatRepo implements ChatRepo {
       if (e is ServerFrameErr) {
         errors.add(e);
       } else {
-        //throw e;
+        throw e;
       }
     }).forEach(_handleFrame);
     await _channel.ready;
@@ -49,10 +51,28 @@ class WsChatRepo implements ChatRepo {
       case ServerFrameErr:
         errors.add(frame as ServerFrameErr);
         break;
+      case ServerFramePresent:
+        var frame_ = frame as ServerFramePresent;
+        _users.add(User(frame_.handle));
+        break;
+      case ServerFrameLogin:
+        var frame_ = frame as ServerFrameLogin;
+        _users.add(User(frame_.handle));
+        break;
+      case ServerFrameLogout:
+        var frame_ = frame as ServerFrameLogout;
+        _users.remove(User(frame_.handle));
+        break;
       default:
         throw "unknown frame";
     }
   }
+
+  @override
+  Set<User> get users => _users.data;
+
+  @override
+  Stream<Set<User>> watchUsers() => _users.stream;
 
   @override
   String? get handle {
@@ -128,5 +148,27 @@ class WsChatRepo implements ChatRepo {
         handler();
       }
     });
+  }
+}
+
+class StreamSet<T> {
+  StreamSet() : data = {};
+  StreamSet.init(this.data);
+
+  final Set<T> data;
+  final StreamController<Set<T>> _stream = StreamController.broadcast();
+
+  void add(T item) {
+    data.add(item);
+    _stream.add(data);
+  }
+
+  void remove(T item) {
+    data.remove(item);
+    _stream.add(data);
+  }
+
+  Stream<Set<T>> get stream {
+    return _stream.stream;
   }
 }

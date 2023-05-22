@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:minichat_client/chat/chat_input.dart';
 import 'package:minichat_client/chat/chat_msg_list.dart';
+import 'package:minichat_client/chat/user_list.dart';
 import 'package:minichat_client/chat_repo/chat_repo.dart';
 
 class Chat extends StatefulWidget {
@@ -44,9 +45,16 @@ class _ChatState extends State<Chat> {
           body: Column(
             children: [
               Expanded(
-                child: TextFieldTapRegion(
-                    child: MessageList(controller: controller)),
-              ),
+                  child: TextFieldTapRegion(
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: MessageList(controller: controller),
+                    ),
+                    UserList(widget._repo.users, widget._repo.watchUsers()),
+                  ],
+                ),
+              )),
               ChatInput(
                 onSubmit: _onSubmit,
               ),

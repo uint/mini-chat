@@ -57,4 +57,15 @@ class FakeChatRepo implements ChatRepo {
 
   @override
   Future<void> logout() async {}
+
+  @override
+  Set<User> get users => {};
+
+  @override
+  Stream<Set<User>> watchUsers() async* {
+    await Future.delayed(const Duration(milliseconds: 500));
+    yield {User("bob"), User("agnes")};
+    await Future.delayed(const Duration(milliseconds: 500));
+    yield {User("bob"), User("agnes"), User("roxanne")};
+  }
 }
