@@ -10,7 +10,21 @@ import 'package:minichat_client/chat_repo/client_frame.dart';
 import 'package:minichat_client/chat_repo/chat_repo.dart';
 
 class WsChatRepo implements ChatRepo {
-  WsChatRepo(Uri uri) : _channel = WebSocketChannel.connect(uri) {
+  WsChatRepo(this.uri) {
+    _connect();
+  }
+
+  final Uri uri;
+  late WebSocketChannel _channel;
+  String? _handle;
+  StreamController<ServerFrameErr> errors = StreamController.broadcast();
+  StreamController<Message> messages = StreamController.broadcast();
+  StreamController<int> receipts = StreamController.broadcast();
+  int msgCount = 0;
+  bool _connected = false;
+
+  Future<void> _connect() async {
+    _channel = WebSocketChannel.connect(uri);
     _channel.stream.map((bytes) => ServerFrame.decode(bytes)).handleError((e) {
       if (e is ServerFrameErr) {
         errors.add(e);
@@ -18,14 +32,9 @@ class WsChatRepo implements ChatRepo {
         //throw e;
       }
     }).forEach(_handleFrame);
+    await _channel.ready;
+    _connected = true;
   }
-
-  final WebSocketChannel _channel;
-  String? _handle;
-  StreamController<ServerFrameErr> errors = StreamController.broadcast();
-  StreamController<Message> messages = StreamController.broadcast();
-  StreamController<int> receipts = StreamController.broadcast();
-  int msgCount = 0;
 
   void _handleFrame(ServerFrame frame) {
     switch (frame.runtimeType) {
@@ -57,6 +66,10 @@ class WsChatRepo implements ChatRepo {
 
   @override
   Future<void> logIn(String handle) async {
+    if (!_connected) {
+      await _connect();
+    }
+
     var id = issueId();
     _channel.sink.add(ClientLoginFrame(handle).encode(id));
     await waitForCompletion(id);
@@ -91,7 +104,29 @@ class WsChatRepo implements ChatRepo {
   }
 
   @override
-  void close() {
-    _channel.sink.close();
+  Future<void> logout() async {
+    _handle = null;
+
+    if (_connected) {
+      var id = issueId();
+      _channel.sink.add(ClientLogoutFrame().encode(id));
+      await waitForCompletion(id);
+    }
+  }
+
+  //@override
+  void onDisconnect(void Function() handler) {
+    _channel.sink.done.then((_) {
+      if (_connected) {
+        _connected = false;
+        handler();
+      }
+    });
+    _channel.stream.last.then((_) {
+      if (_connected) {
+        _connected = false;
+        handler();
+      }
+    });
   }
 }

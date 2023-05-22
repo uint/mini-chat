@@ -16,6 +16,15 @@ class ClientLoginFrame extends ClientFrame {
   }
 }
 
+class ClientLogoutFrame extends ClientFrame {
+  ClientLogoutFrame();
+
+  @override
+  Uint8List encode(int id) {
+    return Uint8List.fromList([id, 2]);
+  }
+}
+
 class ClientMsgFrame extends ClientFrame {
   ClientMsgFrame(this.msg);
 

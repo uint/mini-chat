@@ -60,7 +60,7 @@ class LoginFormState extends State<LoginForm> {
               return Chat(repo);
             })))
         .catchError((e) {
-      repo.close();
+      repo.logout();
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text("error: $e")),
       );

@@ -56,5 +56,5 @@ class FakeChatRepo implements ChatRepo {
   String? get handle => _handle;
 
   @override
-  void close() {}
+  Future<void> logout() async {}
 }

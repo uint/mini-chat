@@ -32,20 +32,26 @@ class _ChatState extends State<Chat> {
     }
     handle = widget._repo.handle!;
 
-    return Scaffold(
-        appBar: AppBar(
-          title: const Text('mini-chat'),
-        ),
-        body: Column(
-          children: [
-            Expanded(
-              child: TextFieldTapRegion(
-                  child: MessageList(controller: controller)),
-            ),
-            ChatInput(
-              onSubmit: _onSubmit,
-            ),
-          ],
-        ));
+    return WillPopScope(
+      onWillPop: () async {
+        await widget._repo.logout();
+        return true;
+      },
+      child: Scaffold(
+          appBar: AppBar(
+            title: const Text('mini-chat'),
+          ),
+          body: Column(
+            children: [
+              Expanded(
+                child: TextFieldTapRegion(
+                    child: MessageList(controller: controller)),
+              ),
+              ChatInput(
+                onSubmit: _onSubmit,
+              ),
+            ],
+          )),
+    );
   }
 }

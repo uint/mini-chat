@@ -6,6 +6,7 @@ use std::{collections::HashMap, io::Error as IoError, net::SocketAddr, sync::Arc
 
 use frame::DecodeError;
 use futures_channel::mpsc::{unbounded, UnboundedSender};
+use futures_util::future::Either;
 use futures_util::{future, pin_mut, Future, Sink, SinkExt, Stream, StreamExt};
 
 use crate::frame::{ClientFrame, ClientFrameType, ServerFrame};
@@ -24,23 +25,27 @@ async fn handle_connection<SNK, STR>(
     STR: Stream<Item = Result<ClientFrame, DecodeError>> + Unpin,
     SNK: Sink<ServerFrame, Error = ()> + Unpin,
 {
-    // Insert the write part of this peer to the peer map.
-    let (tx, rx) = unbounded();
+    while let Ok(handle) = handle_login(&peer_map, &mut sink, &mut stream).await {
+        // Insert the write part of this peer to the peer map.
+        let (tx, rx) = unbounded();
 
-    if let Ok(handle) = handle_login(&peer_map, &mut sink, &mut stream).await {
         peer_map.write().await.insert(handle.clone(), tx.clone());
 
         let handle_frames = handle_chat_msgs(&peer_map, tx.clone(), &mut stream, &handle);
-        let receive_from_others = rx.map(Ok).forward(sink);
+        let receive_from_others = rx.map(Ok).forward(&mut sink);
 
         pin_mut!(handle_frames, receive_from_others);
-        future::select(handle_frames, receive_from_others).await;
+        let x = future::select(handle_frames, receive_from_others).await;
+        if let Either::Left((Some(id), _)) = x {
+            let _ = sink.send(ServerFrame::Okay(id)).await;
+        }
 
         // could be smarter to hold a handle here that removes from the peer map on drop
         peer_map.write().await.remove(&handle);
         for peer in peer_map.read().await.values() {
             let _ = peer.unbounded_send(ServerFrame::Logout(handle.clone()));
         }
+        println!("{} logged out", &handle);
     }
 
     println!("{} disconnected", &addr);
@@ -82,7 +87,12 @@ where
     }
 }
 
-async fn handle_chat_msgs<STR>(peer_map: &PeerMap, tx: Tx, stream: &mut STR, handle: &str)
+async fn handle_chat_msgs<STR>(
+    peer_map: &PeerMap,
+    tx: Tx,
+    stream: &mut STR,
+    handle: &str,
+) -> Option<u8>
 where
     STR: Stream<Item = Result<ClientFrame, DecodeError>> + Unpin,
 {
@@ -92,9 +102,7 @@ where
                 ClientFrameType::Msg(msg) => {
                     let receipt = ServerFrame::Okay(id);
 
-                    if let Err(_) = tx.unbounded_send(receipt) {
-                        return;
-                    }
+                    let _ = tx.unbounded_send(receipt);
 
                     let peers = peer_map.read().await;
 
@@ -112,10 +120,15 @@ where
                         recp.unbounded_send(broadcast_frame.clone()).unwrap();
                     }
                 }
+                ClientFrameType::Logout => {
+                    return Some(id);
+                }
                 _ => {}
             }
         }
     }
+
+    None
 }
 
 /// The `stream_builder` callable is meant to split the [`TcpStream`] and decorate both the

@@ -14,6 +14,7 @@ pub struct ClientFrame {
 pub enum ClientFrameType {
     Login(String) = 0,
     Msg(String) = 1,
+    Logout = 2,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, BorshSerialize, BorshDeserialize)]

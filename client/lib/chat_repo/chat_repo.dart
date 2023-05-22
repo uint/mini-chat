@@ -15,7 +15,7 @@ abstract class ChatRepo {
 
   Stream<Message> watchMessages();
 
-  void close();
+  Future<void> logout();
 }
 
 class Message {
