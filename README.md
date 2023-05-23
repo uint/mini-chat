@@ -19,4 +19,8 @@ cd client
 flutter run
 ```
 
-The client is not yet set up to interact with the actual server. That's coming soon!
+By default, the client will be built with a mock backend. If you have the server up, you can instead connect to it:
+
+```sh
+flutter run --dart-define MC_WS_URL=ws://127.0.0.1:3333
+```
