@@ -59,14 +59,21 @@ impl UserPool {
         }
     }
 
-    pub fn remove_user_sync(&self, handle: String) {
+    async fn remove_user(&self, handle: &str) {
+        self.0.write().await.remove(handle);
+    }
+
+    pub fn remove_user_sync(&self, handle: impl AsRef<str> + Into<String>) {
         if let Ok(mut w_lock) = self.0.try_write() {
             // remove the thing immediately if possible
-            w_lock.remove(&handle);
+            w_lock.remove(handle.as_ref());
         } else {
             // otherwise use tokio to schedule removal
-            let data = Arc::clone(&self.0);
-            tokio::spawn(async move { data.write().await.remove(&handle) });
+            let data = self.clone();
+            let handle = handle.into();
+            tokio::spawn(async move {
+                data.remove_user(&handle).await;
+            });
         }
     }
 }
@@ -88,8 +95,7 @@ impl UserGuard<'_> {
 
 impl Drop for UserGuard<'_> {
     fn drop(&mut self) {
-        let handle = std::mem::take(&mut self.handle);
-        self.pool.remove_user_sync(handle);
+        self.pool.remove_user_sync(&self.handle);
     }
 }
 
