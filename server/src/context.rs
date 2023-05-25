@@ -1,13 +1,12 @@
-use std::{pin::Pin, sync::Arc};
+use std::sync::Arc;
 
 use dashmap::{mapref::multiple::RefMulti, DashMap};
 use futures_channel::mpsc::{self, TrySendError, UnboundedReceiver, UnboundedSender};
-use futures_util::Stream;
 
 use crate::frame::ServerFrame;
 
 #[derive(Default, Debug, Clone)]
-struct Context {
+pub struct Context {
     users: UserPool,
 }
 
@@ -25,14 +24,17 @@ type Tx = UnboundedSender<ServerFrame>;
 type Rx = UnboundedReceiver<ServerFrame>;
 
 #[derive(Default, Debug, Clone)]
-struct UserPool(Arc<DashMap<String, Tx>>);
+pub struct UserPool(Arc<DashMap<String, Tx>>);
 
 impl UserPool {
-    pub fn new() -> Self {
-        Self::default()
-    }
-
-    pub fn register_user(&self, handle: impl Into<String>) -> Option<UserGuard> {
+    pub fn register_user_with_callback<F>(
+        &self,
+        handle: impl Into<String>,
+        on_drop: F,
+    ) -> Option<UserGuard<'_, F>>
+    where
+        F: Fn(&str, &UserPool),
+    {
         let handle = handle.into();
         if self.0.contains_key(&handle) {
             return None;
@@ -43,7 +45,8 @@ impl UserPool {
             handle,
             pool: self,
             tx,
-            rx,
+            rx: Some(rx),
+            on_drop,
         })
     }
 
@@ -52,10 +55,6 @@ impl UserPool {
         Users {
             iter: self.0.iter(),
         }
-    }
-
-    pub fn contains(&self, handle: &str) -> bool {
-        self.0.contains_key(handle)
     }
 
     pub fn broadcast(&self, frame: ServerFrame) {
@@ -137,35 +136,43 @@ impl From<UserHandleRef<'_>> for String {
     }
 }
 
-pub struct UserGuard<'p> {
+pub struct UserGuard<'p, F>
+where
+    F: Fn(&str, &UserPool),
+{
     handle: String,
     pool: &'p UserPool,
     tx: Tx,
-    rx: Rx,
+    rx: Option<Rx>,
+    on_drop: F,
 }
 
-impl UserGuard<'_> {
+impl<F> UserGuard<'_, F>
+where
+    F: Fn(&str, &UserPool),
+{
     pub fn send(&self, frame: ServerFrame) -> Result<(), TrySendError<ServerFrame>> {
         self.tx.unbounded_send(frame)?;
 
         Ok(())
     }
-}
 
-impl Stream for UserGuard<'_> {
-    type Item = ServerFrame;
+    pub fn handle(&self) -> &str {
+        &self.handle
+    }
 
-    fn poll_next(
-        mut self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Self::Item>> {
-        Pin::new(&mut self.rx).poll_next(cx)
+    pub fn take_rx(&mut self) -> Option<Rx> {
+        self.rx.take()
     }
 }
 
-impl Drop for UserGuard<'_> {
+impl<F> Drop for UserGuard<'_, F>
+where
+    F: Fn(&str, &UserPool),
+{
     fn drop(&mut self) {
         self.pool.remove_user(&self.handle);
+        (self.on_drop)(self.handle(), self.pool);
     }
 }
 
@@ -174,9 +181,26 @@ mod tests {
     use std::collections::HashSet;
 
     use dashmap::try_result::TryResult;
-    use futures_util::StreamExt;
+    use futures_util::StreamExt as _;
 
     use super::*;
+
+    impl UserPool {
+        pub fn new() -> Self {
+            Self::default()
+        }
+
+        pub fn register_user(
+            &self,
+            handle: impl Into<String>,
+        ) -> Option<UserGuard<'_, impl Fn(&str, &UserPool)>> {
+            self.register_user_with_callback(handle, |_, _| {})
+        }
+
+        pub fn contains(&self, handle: &str) -> bool {
+            self.0.contains_key(handle)
+        }
+    }
 
     #[test]
     fn register_user() {
@@ -236,8 +260,8 @@ mod tests {
         ));
     }
 
-    #[test]
-    fn broadcast() {
+    #[tokio::test]
+    async fn broadcast() {
         let pool = UserPool::new();
         let mut anne = pool.register_user("anne").unwrap();
         let mut bob = pool.register_user("bob").unwrap();
@@ -248,12 +272,12 @@ mod tests {
         };
         pool.broadcast(frame.clone());
 
-        assert_eq!(frame, anne.rx.try_next().unwrap().unwrap());
-        assert_eq!(frame, bob.rx.try_next().unwrap().unwrap());
+        assert_eq!(frame, anne.take_rx().unwrap().next().await.unwrap());
+        assert_eq!(frame, bob.take_rx().unwrap().next().await.unwrap());
     }
 
-    #[test]
-    fn broadcast_except() {
+    #[tokio::test]
+    async fn broadcast_except() {
         let pool = UserPool::new();
         let mut anne = pool.register_user("anne").unwrap();
         let mut bob = pool.register_user("bob").unwrap();
@@ -264,19 +288,19 @@ mod tests {
         };
         pool.broadcast_except("bob", frame.clone());
 
-        assert_eq!(frame, anne.rx.try_next().unwrap().unwrap());
-        assert!(bob.rx.try_next().is_err());
+        assert_eq!(frame, anne.take_rx().unwrap().next().await.unwrap());
+        assert!(bob.rx.as_mut().unwrap().try_next().is_err());
     }
 
-    #[test]
-    fn message() {
+    #[tokio::test]
+    async fn message() {
         let pool = UserPool::new();
         let mut anne = pool.register_user("anne").unwrap();
 
         let frame = ServerFrame::Okay(42);
         anne.send(frame.clone()).unwrap();
 
-        assert_eq!(frame, anne.rx.try_next().unwrap().unwrap());
+        assert_eq!(frame, anne.take_rx().unwrap().next().await.unwrap());
     }
 
     #[tokio::test]
@@ -290,7 +314,9 @@ mod tests {
         anne.send(login_frame.clone()).unwrap();
         anne.send(okay_frame.clone()).unwrap();
 
-        assert_eq!(anne.next().await.unwrap(), login_frame);
-        assert_eq!(anne.next().await.unwrap(), okay_frame);
+        let mut rx = anne.take_rx().unwrap();
+
+        assert_eq!(rx.next().await.unwrap(), login_frame);
+        assert_eq!(rx.next().await.unwrap(), okay_frame);
     }
 }
