@@ -1,34 +1,44 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{pin::Pin, sync::Arc};
 
+use dashmap::{mapref::multiple::RefMulti, DashMap};
 use futures_channel::mpsc::{self, TrySendError, UnboundedReceiver, UnboundedSender};
-use tokio::sync::RwLock;
+use futures_util::Stream;
 
 use crate::frame::ServerFrame;
 
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 struct Context {
     users: UserPool,
+}
+
+impl Context {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn users(&self) -> &UserPool {
+        &self.users
+    }
 }
 
 type Tx = UnboundedSender<ServerFrame>;
 type Rx = UnboundedReceiver<ServerFrame>;
 
 #[derive(Default, Debug, Clone)]
-struct UserPool(Arc<RwLock<HashMap<String, Tx>>>);
+struct UserPool(Arc<DashMap<String, Tx>>);
 
 impl UserPool {
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub async fn register_user(&self, handle: impl Into<String>) -> Option<UserGuard> {
+    pub fn register_user(&self, handle: impl Into<String>) -> Option<UserGuard> {
         let handle = handle.into();
-        let mut w_lock = self.0.write().await;
-        if w_lock.contains_key(&handle) {
+        if self.0.contains_key(&handle) {
             return None;
         }
         let (tx, rx) = mpsc::unbounded();
-        w_lock.insert(handle.clone(), tx.clone());
+        self.0.insert(handle.clone(), tx.clone());
         Some(UserGuard {
             handle,
             pool: self,
@@ -37,48 +47,97 @@ impl UserPool {
         })
     }
 
-    pub async fn contains(&self, handle: &str) -> bool {
-        self.0.read().await.contains_key(handle)
+    /// Don't hold this iterator or the guards it produces across await points!
+    pub fn users(&self) -> Users<'_> {
+        Users {
+            iter: self.0.iter(),
+        }
     }
 
-    pub async fn broadcast(&self, frame: ServerFrame) {
-        for tx in self.0.read().await.values() {
+    pub fn contains(&self, handle: &str) -> bool {
+        self.0.contains_key(handle)
+    }
+
+    pub fn broadcast(&self, frame: ServerFrame) {
+        for r in self.0.iter() {
+            let tx = r.value();
             let _ = tx.unbounded_send(frame.clone());
         }
     }
 
-    pub async fn broadcast_except(&self, handle: &str, frame: ServerFrame) {
-        for (_, tx) in self
-            .0
-            .read()
-            .await
-            .iter()
-            .filter(|(h, _)| h.as_str() != handle)
-        {
+    pub fn broadcast_except(&self, handle: &str, frame: ServerFrame) {
+        for r in self.0.iter().filter(|r| r.key() != handle) {
+            let tx = r.value();
             let _ = tx.unbounded_send(frame.clone());
         }
     }
 
-    async fn remove_user(&self, handle: &str) {
-        self.0.write().await.remove(handle);
-    }
-
-    pub fn remove_user_sync(&self, handle: impl AsRef<str> + Into<String>) {
-        if let Ok(mut w_lock) = self.0.try_write() {
-            // remove the thing immediately if possible
-            w_lock.remove(handle.as_ref());
-        } else {
-            // otherwise use tokio to schedule removal
-            let data = self.clone();
-            let handle = handle.into();
-            tokio::spawn(async move {
-                data.remove_user(&handle).await;
-            });
-        }
+    fn remove_user(&self, handle: &str) {
+        self.0.remove(handle);
     }
 }
 
-struct UserGuard<'p> {
+pub struct Users<'a> {
+    iter: dashmap::iter::Iter<'a, String, Tx>,
+}
+
+impl<'a> Iterator for Users<'a> {
+    type Item = UserHandleRef<'a>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.iter.next().map(UserHandleRef)
+    }
+}
+
+pub struct UserHandleRef<'a>(RefMulti<'a, String, Tx>);
+
+impl std::ops::Deref for UserHandleRef<'_> {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        self.0.key()
+    }
+}
+
+impl std::cmp::PartialEq for UserHandleRef<'_> {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.key() == other.0.key()
+    }
+}
+
+impl Eq for UserHandleRef<'_> {}
+
+impl std::cmp::PartialEq<&str> for UserHandleRef<'_> {
+    fn eq(&self, other: &&str) -> bool {
+        self.0.key() == other
+    }
+}
+
+impl std::cmp::PartialEq<UserHandleRef<'_>> for &str {
+    fn eq(&self, other: &UserHandleRef) -> bool {
+        self == other.0.key()
+    }
+}
+
+impl std::hash::Hash for UserHandleRef<'_> {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.key().hash(state);
+    }
+}
+
+impl std::fmt::Debug for UserHandleRef<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("UserHandleRef").field(&self.0.key()).finish()
+    }
+}
+
+impl From<UserHandleRef<'_>> for String {
+    fn from(value: UserHandleRef<'_>) -> Self {
+        value.0.key().to_string()
+    }
+}
+
+pub struct UserGuard<'p> {
     handle: String,
     pool: &'p UserPool,
     tx: Tx,
@@ -86,86 +145,152 @@ struct UserGuard<'p> {
 }
 
 impl UserGuard<'_> {
-    fn message(&self, frame: ServerFrame) -> Result<(), TrySendError<ServerFrame>> {
+    pub fn send(&self, frame: ServerFrame) -> Result<(), TrySendError<ServerFrame>> {
         self.tx.unbounded_send(frame)?;
 
         Ok(())
     }
 }
 
+impl Stream for UserGuard<'_> {
+    type Item = ServerFrame;
+
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        Pin::new(&mut self.rx).poll_next(cx)
+    }
+}
+
 impl Drop for UserGuard<'_> {
     fn drop(&mut self) {
-        self.pool.remove_user_sync(&self.handle);
+        self.pool.remove_user(&self.handle);
     }
 }
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
+    use dashmap::try_result::TryResult;
+    use futures_util::StreamExt;
+
     use super::*;
 
-    #[tokio::test]
-    async fn register_user() {
+    #[test]
+    fn register_user() {
         let pool = UserPool::new();
-        let _bob = pool.register_user("bob").await.unwrap();
-        assert!(pool.contains("bob").await);
+        let _bob = pool.register_user("bob").unwrap();
+        assert!(pool.contains("bob"));
     }
 
-    #[tokio::test]
-    async fn nonexistent_user() {
+    #[test]
+    fn nonexistent_user() {
         let pool = UserPool::new();
-        let _bob = pool.register_user("bob").await.unwrap();
-        assert!(!pool.contains("tom").await);
+        let _bob = pool.register_user("bob").unwrap();
+        assert!(!pool.contains("tom"));
     }
 
-    #[tokio::test]
-    async fn unregister_user() {
+    #[test]
+    fn unregister_user() {
         let pool = UserPool::new();
         {
-            let _bob = pool.register_user("bob").await.unwrap();
+            let _bob = pool.register_user("bob").unwrap();
         }
-        assert!(!pool.contains("bob").await);
+        assert!(!pool.contains("bob"));
     }
 
-    #[tokio::test]
-    async fn broadcast() {
+    #[test]
+    fn iterate_users() {
         let pool = UserPool::new();
-        let mut anne = pool.register_user("anne").await.unwrap();
-        let mut bob = pool.register_user("bob").await.unwrap();
+        let _anne = pool.register_user("anne").unwrap();
+        let _bob = pool.register_user("bob").unwrap();
+
+        let users: Vec<_> = pool.users().map(String::from).collect();
+
+        assert_eq!(
+            users.iter().map(String::as_str).collect::<HashSet<_>>(),
+            HashSet::<&str>::from(["anne", "bob"])
+        );
+    }
+
+    #[test]
+    fn iterate_users_safety() {
+        let pool = UserPool::new();
+        let _anne = pool.register_user("anne").unwrap();
+        let _bob = pool.register_user("bob").unwrap();
+        let _dudeson = pool.register_user("dudeson").unwrap();
+
+        let _users = pool
+            .users()
+            .filter(|u| *u != "dudeson") // this will drop the guard for "dudeson"
+            .collect::<HashSet<_>>(); // we're only holding guards for "anne" and "bob"
+
+        assert!(matches!(pool.0.try_get_mut("anne"), TryResult::Locked));
+        assert!(matches!(pool.0.try_get_mut("bob"), TryResult::Locked));
+        assert!(matches!(pool.0.try_get_mut("claire"), TryResult::Absent));
+        assert!(matches!(
+            pool.0.try_get_mut("dudeson"),
+            TryResult::Present(_)
+        ));
+    }
+
+    #[test]
+    fn broadcast() {
+        let pool = UserPool::new();
+        let mut anne = pool.register_user("anne").unwrap();
+        let mut bob = pool.register_user("bob").unwrap();
 
         let frame = ServerFrame::Broadcast {
             sender: "system".to_string(),
             msg: "hi".to_string(),
         };
-        pool.broadcast(frame.clone()).await;
+        pool.broadcast(frame.clone());
 
         assert_eq!(frame, anne.rx.try_next().unwrap().unwrap());
         assert_eq!(frame, bob.rx.try_next().unwrap().unwrap());
     }
 
-    #[tokio::test]
-    async fn broadcast_except() {
+    #[test]
+    fn broadcast_except() {
         let pool = UserPool::new();
-        let mut anne = pool.register_user("anne").await.unwrap();
-        let mut bob = pool.register_user("bob").await.unwrap();
+        let mut anne = pool.register_user("anne").unwrap();
+        let mut bob = pool.register_user("bob").unwrap();
 
         let frame = ServerFrame::Broadcast {
             sender: "system".to_string(),
             msg: "hi".to_string(),
         };
-        pool.broadcast_except("bob", frame.clone()).await;
+        pool.broadcast_except("bob", frame.clone());
 
         assert_eq!(frame, anne.rx.try_next().unwrap().unwrap());
         assert!(bob.rx.try_next().is_err());
     }
 
-    #[tokio::test]
-    async fn message() {
+    #[test]
+    fn message() {
         let pool = UserPool::new();
-        let mut anne = pool.register_user("anne").await.unwrap();
+        let mut anne = pool.register_user("anne").unwrap();
 
         let frame = ServerFrame::Okay(42);
-        anne.message(frame.clone()).unwrap();
+        anne.send(frame.clone()).unwrap();
 
         assert_eq!(frame, anne.rx.try_next().unwrap().unwrap());
+    }
+
+    #[tokio::test]
+    async fn user_guard_stream() {
+        let pool = UserPool::new();
+        let mut anne = pool.register_user("anne").unwrap();
+
+        let login_frame = ServerFrame::Login("bob".to_string());
+        let okay_frame = ServerFrame::Okay(42);
+
+        anne.send(login_frame.clone()).unwrap();
+        anne.send(okay_frame.clone()).unwrap();
+
+        assert_eq!(anne.next().await.unwrap(), login_frame);
+        assert_eq!(anne.next().await.unwrap(), okay_frame);
     }
 }
