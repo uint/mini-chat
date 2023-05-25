@@ -130,6 +130,8 @@ where
     STR: Stream<Item = Result<ClientFrame, DecodeError>> + Send + Unpin + 'static,
     SNK: Sink<ServerFrame, Error = ()> + Send + Unpin + 'static,
 {
+    // if we ever serve on multiple ports (e.g. different transports), this context will need to be
+    // created outside this function and passed by parameter so that it can be shared
     let ctx = Context::new();
 
     let try_socket = TcpListener::bind(addr).await;

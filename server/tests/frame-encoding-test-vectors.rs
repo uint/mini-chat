@@ -1,7 +1,5 @@
 // This doesn't exist for testing any functionality, but just to keep around
 // some test vectors and make sure they're up to date.
-// They'll probably come in handy when implementing the client
-// later.
 
 #[test]
 fn server_frames() {
