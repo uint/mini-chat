@@ -226,6 +226,23 @@ mod tests {
     }
 
     #[test]
+    fn unregister_user_callback() {
+        let pool = UserPool::new();
+
+        let dropped = Arc::new(std::sync::RwLock::new(false));
+        let dropped_c = Arc::clone(&dropped);
+
+        {
+            let _bob = pool
+                .register_user_with_callback("bob", move |_, _| *dropped_c.write().unwrap() = true)
+                .unwrap();
+            assert!(!*dropped.read().unwrap());
+        }
+
+        assert!(*dropped.read().unwrap());
+    }
+
+    #[test]
     fn iterate_users() {
         let pool = UserPool::new();
         let _anne = pool.register_user("anne").unwrap();
