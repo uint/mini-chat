@@ -16,6 +16,8 @@ pub async fn handle_connection<SNK, STR>(
     STR: Stream<Item = Result<ClientFrame, DecodeError>> + Unpin,
     SNK: Sink<ServerFrame, Error = ()> + Unpin,
 {
+    println!("{} connected", &addr);
+
     fn on_logout(handle: &str, pool: &UserPool) {
         pool.broadcast(ServerFrame::Logout(handle.to_string()));
         println!("{} logged out", handle);
