@@ -22,22 +22,17 @@ class ChatInput extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-            child: TextField(
-          onSubmitted: _submit,
-          controller: _controller,
-          focusNode: focusNode,
-          decoration: const InputDecoration(
-            border: OutlineInputBorder(),
-            hintText: 'enter your message',
-          ),
-        )),
-        TextFieldTapRegion(child: FloatingActionButton(onPressed: () {
-          _submit(_controller.text);
-        })),
-      ],
+    return TextField(
+      onSubmitted: _submit,
+      controller: _controller,
+      focusNode: focusNode,
+      decoration: const InputDecoration(
+        fillColor: Color.fromARGB(255, 225, 235, 225),
+        filled: true,
+        prefixIcon: Icon(Icons.message),
+        border: InputBorder.none,
+        hintText: 'enter your message',
+      ),
     );
   }
 }

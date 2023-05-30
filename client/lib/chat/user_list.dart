@@ -10,7 +10,10 @@ class UserList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-        decoration: const BoxDecoration(border: Border(left: BorderSide())),
+        decoration: const BoxDecoration(
+          color: Color.fromARGB(255, 240, 245, 240),
+          //border: Border(left: BorderSide())
+        ),
         padding: const EdgeInsets.symmetric(horizontal: 6),
         width: 200,
         child: Column(children: [
