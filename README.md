@@ -4,7 +4,7 @@ Just a little toy project, mostly to learn Flutter and get a refresher in async 
 
 <img src="/.assets/demo.gif" width="478" height="195"/>
 
-# How to run
+# Running the server
 
 Right now, you can run the server with:
 
@@ -12,7 +12,14 @@ Right now, you can run the server with:
 cargo run
 ```
 
-You can run the client with:
+You could also use docker.
+
+```sh
+docker build . -t mini-chat
+docker run -p 3333:3333 mini-chat
+```
+
+# Running the client
 
 ```sh
 cd client
