@@ -38,28 +38,49 @@ class _ChatState extends State<Chat> {
         await widget._repo.logout();
         return true;
       },
-      child: Scaffold(
-          appBar: AppBar(
-            title: const Text('mini-chat'),
-          ),
-          body: Column(
-            children: [
-              Expanded(
-                  child: TextFieldTapRegion(
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: MessageList(controller: controller),
-                    ),
-                    UserList(widget._repo.users, widget._repo.watchUsers()),
-                  ],
+      child: LayoutBuilder(builder: (_, constraints) {
+        bool wide = constraints.maxWidth > 600;
+
+        var actions = wide
+            ? null
+            : [
+                Builder(
+                  builder: (context) => IconButton(
+                    icon: const Icon(Icons.people),
+                    onPressed: () => Scaffold.of(context).openEndDrawer(),
+                    tooltip: "users",
+                  ),
                 ),
-              )),
-              ChatInput(
-                onSubmit: _onSubmit,
-              ),
-            ],
-          )),
+              ];
+
+        return Scaffold(
+            endDrawer: wide
+                ? null
+                : UserList(widget._repo.users, widget._repo.watchUsers()),
+            appBar: AppBar(
+              title: const Text('mini-chat'),
+              actions: actions,
+            ),
+            body: Column(
+              children: [
+                Expanded(
+                    child: TextFieldTapRegion(
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: MessageList(wide, controller: controller),
+                      ),
+                      if (wide)
+                        UserList(widget._repo.users, widget._repo.watchUsers()),
+                    ],
+                  ),
+                )),
+                ChatInput(
+                  onSubmit: _onSubmit,
+                ),
+              ],
+            ));
+      }),
     );
   }
 }

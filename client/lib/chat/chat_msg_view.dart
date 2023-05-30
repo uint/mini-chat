@@ -3,9 +3,10 @@ import 'package:minichat_client/chat/async_message.dart';
 import 'package:minichat_client/chat_repo/chat_repo.dart';
 
 class AsyncMessageView extends StatelessWidget {
-  const AsyncMessageView(this.asyncMsg, {super.key});
+  const AsyncMessageView(this.asyncMsg, this._wide, {super.key});
 
   final AsyncMessage asyncMsg;
+  final bool _wide;
 
   @override
   Widget build(BuildContext context) {
@@ -15,16 +16,18 @@ class AsyncMessageView extends StatelessWidget {
             future: asyncMsg.completionFuture,
             builder: (BuildContext context, AsyncSnapshot snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
-                return MessageView(AsyncMessageState.waiting, asyncMsg.msg);
+                return MessageView(
+                    AsyncMessageState.waiting, asyncMsg.msg, _wide);
               } else if (snapshot.hasError &&
                   snapshot.connectionState == ConnectionState.done) {
-                return MessageView(AsyncMessageState.error, asyncMsg.msg);
+                return MessageView(
+                    AsyncMessageState.error, asyncMsg.msg, _wide);
               } else {
-                return MessageView(AsyncMessageState.done, asyncMsg.msg);
+                return MessageView(AsyncMessageState.done, asyncMsg.msg, _wide);
               }
             });
       default:
-        return MessageView(asyncMsg.state, asyncMsg.msg);
+        return MessageView(asyncMsg.state, asyncMsg.msg, _wide);
     }
   }
 }
@@ -32,8 +35,9 @@ class AsyncMessageView extends StatelessWidget {
 class MessageView extends StatelessWidget {
   final AsyncMessageState msgState;
   final Message msg;
+  final bool _wide;
 
-  const MessageView(this.msgState, this.msg, {super.key});
+  const MessageView(this.msgState, this.msg, this._wide, {super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -61,12 +65,13 @@ class MessageView extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(4.0),
       child: Row(children: [
-        SizedBox(
-            width: 45,
-            child: Text(
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-                textAlign: TextAlign.center,
-                displayTime(msg.dateTime))),
+        if (_wide)
+          SizedBox(
+              width: 35,
+              child: Text(
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  textAlign: TextAlign.center,
+                  displayTime(msg.dateTime))),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 8.0),
           child: Text(msg.user.handle,

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:minichat_client/chat_repo/chat_repo.dart';
@@ -63,9 +64,11 @@ class FakeChatRepo implements ChatRepo {
 
   @override
   Stream<Set<User>> watchUsers() async* {
-    await Future.delayed(const Duration(milliseconds: 500));
-    yield {User("bob"), User("agnes")};
-    await Future.delayed(const Duration(milliseconds: 500));
-    yield {User("bob"), User("agnes"), User("roxanne")};
+    while (true) {
+      await Future.delayed(const Duration(milliseconds: 1000));
+      yield {User("bob"), User("agnes")};
+      await Future.delayed(const Duration(milliseconds: 4500));
+      yield {User("bob"), User("agnes"), User("roxanne")};
+    }
   }
 }

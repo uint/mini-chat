@@ -17,9 +17,10 @@ class MessageListController {
 }
 
 class MessageList extends StatefulWidget {
-  const MessageList({Key? key, this.controller}) : super(key: key);
+  const MessageList(this._wide, {Key? key, this.controller}) : super(key: key);
 
   final MessageListController? controller;
+  final bool _wide;
 
   @override
   MessageListState createState() => MessageListState();
@@ -47,7 +48,8 @@ class MessageListState extends State<MessageList> {
     return SizeTransition(
         sizeFactor: animation,
         child: FadeTransition(
-            opacity: animation, child: AsyncMessageView(stateList[index])));
+            opacity: animation,
+            child: AsyncMessageView(stateList[index], widget._wide)));
   }
 
   @override
