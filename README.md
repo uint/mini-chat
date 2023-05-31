@@ -2,7 +2,7 @@
 
 Just a little toy project, mostly to learn Flutter and get a refresher in async Rust. One stone, two birds!
 
-![screenshot](.assets/screenshot.png)
+<img src="https://raw.githubusercontent.com/uint/mini-chat/main/.assets/screenshot.png" width="60%">
 
 # Running the server
 
