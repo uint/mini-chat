@@ -4,6 +4,8 @@ Just a little toy project, mostly to learn Flutter and get a refresher in async 
 
 <img src="https://raw.githubusercontent.com/uint/mini-chat/main/.assets/screenshot.png" width="60%">
 
+You can play around with it [on my website](https://uint.me/experience). No installing anything!
+
 # Running the server
 
 Right now, you can run the server with:
