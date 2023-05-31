@@ -67,9 +67,9 @@ class MessageView extends StatelessWidget {
       child: Row(children: [
         if (_wide)
           SizedBox(
-              width: 35,
+              width: 40,
               child: Text(
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
                   textAlign: TextAlign.center,
                   displayTime(msg.dateTime))),
         Padding(
